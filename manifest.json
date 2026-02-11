@@ -1,0 +1,43 @@
+{
+  "id": "com.example.mixboxpalette",
+  "name": "Mixbox Palette",
+  "version": "1.0.0",
+  "main": "src/index.html",
+  "manifestVersion": 5,
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "main",
+      "label": "Mixbox Palette",
+      "minWidth": 300,
+      "minHeight": 300,
+      "maxWidth": 800,
+      "maxHeight": 800,
+      "preferredWidth": 512,
+      "preferredHeight": 512,
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "assets/icon.png"
+        }
+      ]
+    }
+  ],
+  "requiredPermissions": {
+    "localFileSystem": "full"
+  },
+  "icons": [
+    {
+      "width": 23,
+      "height": 23,
+      "path": "assets/icon.png"
+    }
+  ],
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "23.3.0"
+    }
+  ]
+}
