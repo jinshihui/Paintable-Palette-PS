@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <title>Mixbox Palette</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="src/styles.css">
 </head>
 
 <body>
@@ -26,13 +26,15 @@
             <button id="btn-clear">Clear</button>
         </div>
         <div class="color-preview">
-            <div id="fg-swatch" title="PS Foreground Color"></div>
+            <div id="fg-swatch"
+                style="display:inline-block; width:20px; height:20px; min-width:20px; min-height:20px; border:1px solid #888; background-color:#000000;">
+                &nbsp;</div>
             <span id="status-text">Ready</span>
         </div>
         <canvas id="palette-canvas" width="300" height="300"
             style="display:block; border:1px solid #555; cursor:crosshair; background:#e8e8e8;"></canvas>
     </div>
-    <script src="main.js"></script>
+    <script src="src/main.js"></script>
 </body>
 
 </html>
