@@ -114,33 +114,54 @@
 
 ### Phase 2: 接入 Mixbox (Core Feature) 🔧 进行中
 
-#### 2a. 引入 Mixbox 库
+#### 2a. 引入 Mixbox 库 ✅
 - [x] `npm install mixbox`，复制 `mixbox.js` 到 `lib/mixbox.js`
-- [ ] 在 `main.js` 中 `require("../lib/mixbox")` 加载库
-- [ ] 验证 `mixbox.lerp()` 基本调用无报错
+- [x] 在 `main.js` 中 `require("./lib/mixbox")` 加载库（路径基于 manifest 根）
+- [x] 验证 `mixbox.lerp()` 基本调用无报错
 
-#### 2b. Latent Buffer 混色架构
-- [ ] 新增 `latentBuffer` (Float64Array, W×H×7) 存储每像素的 Mixbox latent 值
-- [ ] `pixelBuffer` 保留用于吸色（从 latent 转换 RGB 读取）
-- [ ] `drawStamp` 中根据 `colorMode` 分支：
-  - **RGB 模式**：保持现有 alpha-blend（`pixelBuffer` 直接混）
-  - **Mixbox 模式**：将笔刷色和画布色转 latent → 按 opacity 加权混合 → 转回 RGB → 画到 canvas
-- [ ] `doClear` 时同步重置 `latentBuffer`
+#### 2b. Latent Buffer 混色架构 ✅
+- [x] 新增 `latentBuffer` (Float64Array, W×H×7) 存储每像素的 Mixbox latent 值
+- [x] `pixelBuffer` 保留用于吸色（从 latent 转回 RGB）
+- [x] `drawStamp` 中根据 `colorMode` 分支：
+  - **RGB 模式**：canvas 原生 `arc()` alpha-blend + `pixelBuffer` 同步 ✅
+  - **Mixbox 模式**：逐像素 latent 混合 → 转回 RGB → scanline 渲染到 canvas ✅
+- [x] `doClear` 时同步重置 `latentBuffer` 和 `pixelBuffer`
 
-#### 2c. UI 模式切换
-- [ ] `#color-mode` select 绑定事件，切换 `colorMode` 变量（"rgb" / "mixbox"）
-- [ ] 状态栏显示当前模式
+#### 2c. UI 模式切换 ✅
+- [x] `#select-mode` select 绑定事件，切换 `colorMode`（"rgb" / "mixbox"）
+- [x] 状态栏显示当前模式
 
-#### 2d. 验收标准
-- [ ] Mixbox 模式下黄(252,211,0) + 蓝(0,33,133) → 绿色调
-- [ ] RGB 模式下黄 + 蓝 → 灰色调（作为对比）
-- [ ] 切换模式不影响已有画布内容
-- [ ] 吸色功能在两种模式下均正常
+#### 2d. 验收结果
+- [x] Mixbox 模式下黄+蓝 → 绿色调 ✅（WYSIWYG，canvas=吸色结果）
+- [x] RGB 模式下黄+蓝 → 灰色调 ✅
+- [x] 切换模式不影响 RGB 模式性能 ✅
+- [x] 吸色功能在两种模式下均正常 ✅
+
+#### 2e. 🚧 待解决：Mixbox 渲染性能
+**问题**：Mixbox 模式下笔刷不够丝滑，且越画越迟滞。
+
+**已尝试方案**：
+
+| 方案                  | 描述                           | 性能                    | 渲染质量               |
+| --------------------- | ------------------------------ | ----------------------- | ---------------------- |
+| ① 逐像素 `fillRect`   | 每像素 1 次 fillRect           | ❌ 极慢（~1257次/stamp） | ✅ 完美 WYSIWYG         |
+| ② 单次 `arc` 中心色   | 取中心像素结果色，alpha=1.0    | ✅ 极快                  | ⚠️ 不透明感，但 WYSIWYG |
+| ③ 半透明 `arc` 笔刷色 | 与 RGB 模式相同渲染            | ✅ 极快                  | ❌ canvas≠吸色结果      |
+| ④ scanline 逐行渲染   | 每行 1 次 fillRect（当前方案） | ⚠️ 尚可但越画越慢        | ✅ 近似 WYSIWYG         |
+
+**"越画越慢"根因**：UXP canvas 大量 `fillRect` 调用导致内部绘制命令累积。
+
+**下一步优化方向**：
+- 考虑 `requestAnimationFrame` 合并渲染（减少即时调用次数）
+- 考虑降低 stamp 间距（减少每帧 stamp 数量）
+- 考虑使用 dirty flag + 延迟批量刷新整个 canvas
+- 考虑 off-screen canvas 或其他 UXP 支持的图像 API
 
 ### Phase 3: 优化与完善 (Polish)
-- [ ] **性能优化**：实现 `requestAnimationFrame` 节流。
-- [ ] **UI 完善**：添加笔刷参数控制（大小、不透明度、硬度 slider）。
-- [ ] **功能增强**：保存/加载调色盘 (Save/Load)。
+- [ ] **性能优化**：Mixbox 渲染性能（最高优先级）
+- [ ] **性能优化**：`requestAnimationFrame` 节流
+- [ ] **UI 完善**：添加笔刷参数控制（大小、不透明度、硬度 slider）
+- [ ] **功能增强**：保存/加载调色盘 (Save/Load)
 
 ---
 

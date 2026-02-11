@@ -264,17 +264,11 @@ function getPos(e) {
 
 function drawStamp(cx, cy) {
     if (colorMode === "mixbox") {
-        // Mixbox 模式：buffer 逐像素 latent 混色（保证吸色精准）
+        // Mixbox：buffer 逐像素 latent 混色 + scanline 渲染（WYSIWYG）
         updatePixelBufferMixbox(cx, cy, brushRadius, brushColor);
-        // canvas 渲染：取中心像素结果色，单次 arc 绘制（快）
-        var centerRgb = getPixel(cx, cy);
-        ctx.globalAlpha = 1.0;
-        ctx.fillStyle = "rgb(" + centerRgb.r + "," + centerRgb.g + "," + centerRgb.b + ")";
-        ctx.beginPath();
-        ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
-        ctx.fill();
+        renderStampScanline(cx, cy, brushRadius);
     } else {
-        // RGB 模式：canvas 原生 alpha-blend
+        // RGB：canvas 原生 alpha-blend + buffer 同步
         ctx.globalAlpha = brushOpacity;
         ctx.fillStyle = "rgb(" + brushColor.r + "," + brushColor.g + "," + brushColor.b + ")";
         ctx.beginPath();
@@ -282,6 +276,27 @@ function drawStamp(cx, cy) {
         ctx.fill();
         ctx.globalAlpha = 1.0;
         updatePixelBufferRGB(cx, cy, brushRadius, brushColor);
+    }
+}
+
+// 逐行从 pixelBuffer 渲染 stamp 区域到 canvas
+// 每行 1 次 fillRect（取行中心像素色），radius=20 约 40 次调用
+function renderStampScanline(cx, cy, radius) {
+    var y0 = Math.max(0, Math.floor(cy - radius));
+    var y1 = Math.min(H, Math.ceil(cy + radius));
+    var r2 = radius * radius;
+    ctx.globalAlpha = 1.0;
+    for (var py = y0; py < y1; py++) {
+        var dy = py - cy;
+        var halfW = Math.sqrt(r2 - dy * dy);
+        var x0 = Math.max(0, Math.floor(cx - halfW));
+        var x1 = Math.min(W, Math.ceil(cx + halfW));
+        if (x1 <= x0) continue;
+        // 取这一行中心像素的颜色
+        var mx = Math.max(x0, Math.min(x1 - 1, Math.round(cx)));
+        var idx = (py * W + mx) * 3;
+        ctx.fillStyle = "rgb(" + pixelBuffer[idx] + "," + pixelBuffer[idx + 1] + "," + pixelBuffer[idx + 2] + ")";
+        ctx.fillRect(x0, py, x1 - x0, 1);
     }
 }
 
