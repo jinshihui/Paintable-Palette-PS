@@ -264,9 +264,15 @@ function getPos(e) {
 
 function drawStamp(cx, cy) {
     if (colorMode === "mixbox") {
-        // Mixbox 模式：逐像素混色后用 fillRect 渲染
+        // Mixbox 模式：buffer 逐像素 latent 混色（保证吸色精准）
         updatePixelBufferMixbox(cx, cy, brushRadius, brushColor);
-        renderRegionFromBuffer(cx, cy, brushRadius);
+        // canvas 渲染：取中心像素结果色，单次 arc 绘制（快）
+        var centerRgb = getPixel(cx, cy);
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = "rgb(" + centerRgb.r + "," + centerRgb.g + "," + centerRgb.b + ")";
+        ctx.beginPath();
+        ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
+        ctx.fill();
     } else {
         // RGB 模式：canvas 原生 alpha-blend
         ctx.globalAlpha = brushOpacity;
@@ -276,24 +282,6 @@ function drawStamp(cx, cy) {
         ctx.fill();
         ctx.globalAlpha = 1.0;
         updatePixelBufferRGB(cx, cy, brushRadius, brushColor);
-    }
-}
-
-// 从 pixelBuffer 渲染指定区域到 canvas（Mixbox 模式下使用）
-function renderRegionFromBuffer(cx, cy, radius) {
-    var x0 = Math.max(0, Math.floor(cx - radius));
-    var y0 = Math.max(0, Math.floor(cy - radius));
-    var x1 = Math.min(W, Math.ceil(cx + radius));
-    var y1 = Math.min(H, Math.ceil(cy + radius));
-    ctx.globalAlpha = 1.0;
-    for (var py = y0; py < y1; py++) {
-        for (var px = x0; px < x1; px++) {
-            var dx = px - cx, dy = py - cy;
-            if (dx * dx + dy * dy >= radius * radius) continue;
-            var idx = (py * W + px) * 3;
-            ctx.fillStyle = "rgb(" + pixelBuffer[idx] + "," + pixelBuffer[idx + 1] + "," + pixelBuffer[idx + 2] + ")";
-            ctx.fillRect(px, py, 1, 1);
-        }
     }
 }
 

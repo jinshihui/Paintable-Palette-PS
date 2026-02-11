@@ -1,0 +1,100 @@
+src/main.js:103 [palette] plugin create
+src/main.js:330 [palette] DOMContentLoaded
+src/main.js:117 [palette] doInit called
+src/main.js:123 [palette] canvas found, w=300 h=300
+src/main.js:130 [palette] 2d context OK
+src/main.js:136 [palette] fillRect done (bg)
+src/main.js:143 [palette] pointer events bound
+src/main.js:181 [palette] PS foreground: rgb(10,0,225)
+src/main.js:39 [palette] buffers initialized (RGB + Latent)
+src/main.js:190 [palette] init complete, mixbox loaded: true
+src/main.js:109 [palette] panel show fired
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(112,120,139)
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(112,119,152)
+src/main.js:233 [palette] PICK rgb(112,119,152)
+src/main.js:241 [palette] foreground set OK
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(20,22,240)
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(15,16,244)
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(97,104,154)
+src/main.js:241 [palette] foreground set OK
+src/main.js:150 [palette] colorMode = mixbox
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(101,164,153)
+src/main.js:233 [palette] PICK rgb(101,164,153)
+src/main.js:241 [palette] foreground set OK
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(155,208,123)
+src/main.js:241 [palette] foreground set OK
+src/main.js:150 [palette] colorMode = rgb
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(248,248,75)
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:150 [palette] colorMode = mixbox
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(203,203,108)
+src/main.js:233 [palette] PICK rgb(203,203,108)
+src/main.js:241 [palette] foreground set OK
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(40,40,239)
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(247,247,78)
+src/main.js:233 [palette] PICK rgb(247,247,78)
+src/main.js:241 [palette] foreground set OK
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=true pickMode=false
+src/main.js:233 [palette] PICK rgb(236,250,34)
+src/main.js:233 [palette] PICK rgb(236,250,34)
+src/main.js:241 [palette] foreground set OK
+src/main.js:241 [palette] foreground set OK
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:199 [palette] POINTERDOWN altKey=false pickMode=false
