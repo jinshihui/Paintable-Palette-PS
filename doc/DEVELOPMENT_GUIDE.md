@@ -78,36 +78,64 @@
 - [x] 配置 `package.json` 及基础开发工具。
 - [x] 验证 UDT 能成功加载并显示面板。
 
-### Phase 1: 基础调色盘闭环 (MVP) 🔧 进行中
+### Phase 1: 基础调色盘闭环 (MVP) ✅ 已完成
 
-#### 1a. Canvas Stamp 笔刷
-- 监听 `pointerdown`/`pointermove`/`pointerup` 事件
-- 连续轨迹采样：相邻点距离 > `radius * 0.35` 时插入 stamp
-- 每个 stamp 为圆形印章：
-  - 硬度 `hardness` 控制软/硬边过渡
-  - `coverage = d <= r*h ? 1.0 : smoothstep(r, r*h, d)`
-  - `finalAlpha = opacity * coverage`
-- Dirty Rect：每个 stamp 只 `getImageData(bbox)` → 逐像素混色 → `putImageData(bbox)`
+#### 1a. Canvas 笔刷（arc-based）
+- 监听 `pointerdown`/`pointermove`/`pointerup` 事件 ✅
+- 连续轨迹采样：相邻点距离 > `radius * 0.35` 时插入 stamp ✅
+- 每个 stamp 用 `ctx.arc()` + `ctx.fill()` + `globalAlpha` 绘制 ✅
+- **注意**：UXP Canvas 不支持 `getImageData`/`putImageData`，因此用 `pixelBuffer` (Uint8Array) 在 JS 侧追踪像素颜色
 
 #### 1b. PS 前景色双向同步
-- **读前景色**（笔刷色）：`pointerdown` 时读一次 `app.foregroundColor.rgb`，缓存到变量
-- **吸色写入**：`Alt + pointerdown/move` 时读 canvas 像素，构造 `SolidColor` 写回 `app.foregroundColor`
+- **读前景色**：`pointerdown` 时读 `app.foregroundColor.rgb`，缓存为笔刷色 ✅
+- **吸色写入**：Alt+click 或 Pick 按钮模式，读 `pixelBuffer` → `executeAsModal()` 内写 `app.foregroundColor` ✅
+- **关键**：写入前景色必须包裹在 `require("photoshop").core.executeAsModal()` 内
 
 #### 1c. 交互逻辑
-- **左键拖动**：涂抹（读前景色 → stamp 混色）
-- **Alt + 左键**：吸色模式（读 canvas 像素 → 写回 PS 前景色）
-- **Clear 按钮**：清空画布到初始底色
+- **左键拖动**：涂抹（读前景色 → arc stamp） ✅
+- **Alt + 左键** 或 **Pick 按钮**：吸色模式 ✅
+- **Clear 按钮**：清空画布 + 重置 pixelBuffer ✅
 
-#### 1d. 验收标准
-- [ ] 连续拖动涂抹顺滑（512×512 buffer）
-- [ ] 笔刷颜色来自 PS 前景色（改前景色后下一笔生效）
-- [ ] Alt 吸色后 PS 前景色立即更新
-- [ ] Clear 清空无残留
+#### 1d. 验收结果
+- [x] 连续拖动涂抹顺滑（300×300 buffer）
+- [x] 笔刷颜色来自 PS 前景色（改前景色后下一笔生效）
+- [x] Alt 吸色后 PS 前景色立即更新（`executeAsModal`）
+- [x] Clear 清空无残留
 
-### Phase 2: 接入 Mixbox (Core Feature)
-- [ ] 引入 `mixbox.js` 库。
-- [ ] 实现混色模式切换 (RGB <-> Mixbox)。
-- [ ] 验证 Mixbox 模式下的颜料混合效果（如黄+蓝=绿）。
+#### 1e. 踩坑记录
+| 问题                  | 原因                                      | 解决方案                                           |
+| --------------------- | ----------------------------------------- | -------------------------------------------------- |
+| CSS/JS 文件加载失败   | UXP 相对路径基于 `manifest.json` 所在目录 | HTML 内路径加 `src/` 前缀                          |
+| `plugin: {}` 报错     | UXP 要求 plugin 对象必须有 `create` 方法  | 补上 `create`/`destroy`                            |
+| Canvas 不可见         | UXP 不支持 CSS flex 撑开 canvas           | 用内联 `style` + HTML `width`/`height` 属性        |
+| `getImageData` 不可用 | UXP Canvas 仅支持基本形状 API             | 用 `arc()`+`fill()` 画笔刷，`pixelBuffer` 追踪颜色 |
+| 设置前景色失败        | 修改 PS 状态需 modal scope                | 用 `executeAsModal()` 包裹                         |
+| Alt keydown 不触发    | PS 拦截了 Alt 键                          | 读 `e.altKey` + Pick 按钮后备                      |
+
+### Phase 2: 接入 Mixbox (Core Feature) 🔧 进行中
+
+#### 2a. 引入 Mixbox 库
+- [x] `npm install mixbox`，复制 `mixbox.js` 到 `lib/mixbox.js`
+- [ ] 在 `main.js` 中 `require("../lib/mixbox")` 加载库
+- [ ] 验证 `mixbox.lerp()` 基本调用无报错
+
+#### 2b. Latent Buffer 混色架构
+- [ ] 新增 `latentBuffer` (Float64Array, W×H×7) 存储每像素的 Mixbox latent 值
+- [ ] `pixelBuffer` 保留用于吸色（从 latent 转换 RGB 读取）
+- [ ] `drawStamp` 中根据 `colorMode` 分支：
+  - **RGB 模式**：保持现有 alpha-blend（`pixelBuffer` 直接混）
+  - **Mixbox 模式**：将笔刷色和画布色转 latent → 按 opacity 加权混合 → 转回 RGB → 画到 canvas
+- [ ] `doClear` 时同步重置 `latentBuffer`
+
+#### 2c. UI 模式切换
+- [ ] `#color-mode` select 绑定事件，切换 `colorMode` 变量（"rgb" / "mixbox"）
+- [ ] 状态栏显示当前模式
+
+#### 2d. 验收标准
+- [ ] Mixbox 模式下黄(252,211,0) + 蓝(0,33,133) → 绿色调
+- [ ] RGB 模式下黄 + 蓝 → 灰色调（作为对比）
+- [ ] 切换模式不影响已有画布内容
+- [ ] 吸色功能在两种模式下均正常
 
 ### Phase 3: 优化与完善 (Polish)
 - [ ] **性能优化**：实现 `requestAnimationFrame` 节流。

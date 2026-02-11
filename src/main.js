@@ -1,6 +1,7 @@
 const { entrypoints } = require("uxp");
-const app = require("photoshop").app;
-const SolidColor = require("photoshop").app.SolidColor;
+const ps = require("photoshop");
+const app = ps.app;
+const { executeAsModal } = ps.core;
 
 let canvas, ctx;
 let initialized = false;
@@ -179,15 +180,17 @@ function onPointerMove(e) {
 function doPickColor(x, y) {
     var rgb = getPixel(x, y);
     console.log("[palette] PICK rgb(" + rgb.r + "," + rgb.g + "," + rgb.b + ")");
-    try {
-        var c = new SolidColor();
+    // 写入 PS 前景色必须在 modal scope 内
+    executeAsModal(function () {
+        var c = new app.SolidColor();
         c.rgb.red = rgb.r;
         c.rgb.green = rgb.g;
         c.rgb.blue = rgb.b;
         app.foregroundColor = c;
-    } catch (err) {
+        console.log("[palette] foreground set OK");
+    }, { commandName: "Set Foreground Color" }).catch(function (err) {
         console.warn("[palette] setForeground failed:", err);
-    }
+    });
     updateSwatch(rgb.r, rgb.g, rgb.b);
     setStatus("Picked: rgb(" + rgb.r + "," + rgb.g + "," + rgb.b + ")");
 }
