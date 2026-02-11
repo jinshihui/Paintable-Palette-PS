@@ -16,7 +16,7 @@
 ### 1.2 技术选型
 *   **插件架构**：**Adobe UXP Panel**（纯前端技术栈）。
 *   **语言**：JavaScript + HTML + CSS。
-*   **绘图引擎**：HTML5 `<canvas>` (2D Context)。
+*   **绘图/显示引擎**：**位图直出**（维护 `pixelBuffer`，通过 `ImageBlob(type:"image/uncompressed")` 刷新 `<img>`）。
 *   **混色库**：[Mixbox](https://github.com/scrtwpns/mixbox) (CC BY-NC 4.0，非商业/学习用途)。
 *   **PS 交互**：通过 Photoshop DOM API (`app.foregroundColor`) 读写颜色。
 
@@ -29,23 +29,25 @@
 ## 2. 架构设计
 
 ### 2.1 模块划分
-1.  **UI 层**：面板骨架、工具栏（笔刷大小、不透明度、硬度、模式切换、清空）、Canvas 容器。
+1.  **UI 层**：面板骨架、工具栏（笔刷大小、不透明度、硬度、模式切换、清空）、**Surface 容器（`<img>`）**。
 2.  **输入层 (Input)**：监听 `pointerdown` / `pointermove` / `pointerup` 及键盘修饰键（Alt）。
 3.  **PS 颜色桥接层 (Color Bridge)**：
     *   `getForegroundRGB()`: 读取 `app.foregroundColor`。
     *   `setForegroundRGB(rgb)`: 写入 `app.foregroundColor`。
 4.  **笔刷引擎 (Brush Engine)**：
     *   **Stamp 机制**：将连续笔触转换为一系列圆形印章。
-    *   **Dirty Rect**：仅更新受影响的局部区域（Bounding Box）以优化性能。
+    *   **Dirty Rect（可选）**：后续可仅刷新受影响区域（当前实现先以全帧刷新为主，靠节流保证性能）。
 5.  **混色引擎 (Mixing Engine)**：
     *   `blendRGB(dst, src, a)`: 标准线性插值。
     *   `blendMixbox(dst, src, a)`: 调用 Mixbox 库进行颜料模拟混合。
+6.  **显示层 (Presenter)**：
+    *   把 `pixelBuffer` 转为 `Uint8Array`，构造 `ImageBlob`，再 `URL.createObjectURL()` 刷新 `<img>.src`（并 `revokeObjectURL`）。
 
 ### 2.2 数据流
 *   **涂抹 (Paint)**:
-    `PointerMove` -> 读取 PS 前景色 -> 计算 Stamp 位置 -> 读取 Canvas 局部像素 -> **混色算法 (RGB/Mixbox)** -> 写入 Canvas。
+    `PointerMove` -> 读取 PS 前景色 -> 计算 Stamp 位置 -> **混色算法 (RGB/Mixbox)** 更新 `pixelBuffer/latentBuffer` -> `requestAnimationFrame` 节流刷新 `ImageBlob` -> 更新 `<img>`。
 *   **吸色 (Pick)**:
-    `Alt + Click/Drag` -> 读取 Canvas 像素 -> `setForegroundRGB` -> 更新 PS 前景色。
+    `Alt + Click/Drag` -> 读取 `pixelBuffer` 像素 -> `setForegroundRGB` -> 更新 PS 前景色。
 
 ---
 
@@ -111,6 +113,9 @@
 | `getImageData` 不可用 | UXP Canvas 仅支持基本形状 API             | 用 `arc()`+`fill()` 画笔刷，`pixelBuffer` 追踪颜色 |
 | 设置前景色失败        | 修改 PS 状态需 modal scope                | 用 `executeAsModal()` 包裹                         |
 | Alt keydown 不触发    | PS 拦截了 Alt 键                          | 读 `e.altKey` + Pick 按钮后备                      |
+| 越画越卡/Clear 无效   | UXP `<canvas>` 绘制命令可能累积           | 改为 `ImageBlob` 位图直出 + `<img>` 显示 ✅         |
+| `ImageBlob` 构造报错  | 传参类型/格式不兼容                       | `new ImageBlob(Uint8Array, {type:"image/uncompressed", ...})` ✅ |
+| Mixbox 覆盖 RGB 不融合 | RGB 只更新 `pixelBuffer`，`latentBuffer` 过期 | RGB 涂抹标记 `latent_dirty`，Mixbox 前按需同步 latent ✅ |
 
 ### Phase 2: 接入 Mixbox (Core Feature) 🔧 进行中
 
@@ -151,11 +156,21 @@
 
 **"越画越慢"根因**：UXP canvas 大量 `fillRect` 调用导致内部绘制命令累积。
 
-**下一步优化方向**：
-- 考虑 `requestAnimationFrame` 合并渲染（减少即时调用次数）
-- 考虑降低 stamp 间距（减少每帧 stamp 数量）
-- 考虑使用 dirty flag + 延迟批量刷新整个 canvas
-- 考虑 off-screen canvas 或其他 UXP 支持的图像 API
+**已解决（方案选择）**：放弃 `<canvas>` 命令式绘制，改为 **`pixelBuffer` → `ImageBlob` → `<img>`** 的位图刷新链路。
+- 结论：RGB/Mixbox 连续绘制均不再出现“下笔短时迟滞”或“长时间累计迟滞”，`Clear` 也能正常恢复状态。
+- 关键实现要点：
+  - `ImageBlob` 构造器入参使用 `Uint8Array`（而非 `ArrayBuffer`），并匹配 `image/uncompressed` 的尺寸/格式参数。
+  - 用 `requestAnimationFrame` + 最小间隔节流刷新，避免高频生成对象 URL。
+  - 每次刷新后 `URL.revokeObjectURL(lastUrl)`，避免内存累积。
+
+#### 2f. ✅ 修复：RGB/Mixbox 跨模式不融合
+**问题**：Mixbox 笔触覆盖到 RGB 模式的历史笔触时，出现边缘不融合（像两层材质无法混合），但 RGB 覆盖 Mixbox 不受影响。
+
+**根因**：RGB 模式只更新 `pixelBuffer`，但 `latentBuffer` 没有对应更新；后续 Mixbox 混合仍以旧 latent（常为背景）作为底色。
+
+**解决**：
+- 新增 `latent_dirty` 标记：RGB 涂抹命中的像素置脏。
+- Mixbox 更新该像素前：若脏，则先 `rgbToLatent(pixelBuffer)` 同步到 `latentBuffer`，再进行 Mixbox 混合。
 
 ### Phase 3: 优化与完善 (Polish)
 - [ ] **性能优化**：Mixbox 渲染性能（最高优先级）
@@ -183,7 +198,7 @@ newColor.rgb.blue = 0;
 app.foregroundColor = newColor;
 ```
 
-### UXP Canvas
+### UXP Canvas（历史方案 / 受限）
 ```javascript
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d"); // 仅支持 2d
@@ -192,8 +207,36 @@ const imageData = ctx.getImageData(x, y, w, h);
 ctx.putImageData(imageData, x, y);
 ```
 
+> 注意：在 Photoshop UXP 环境中，`<canvas>` 能力受限，上述 `getImageData/putImageData` 可能不可用（本项目最终也不再依赖它们）。
+
+### UXP ImageBlob（当前方案）
+```javascript
+// 以 RGB 8bit 为例：buffer 长度 = width * height * 3
+const buffer = new Uint8Array(width * height * 3);
+
+const blob = new ImageBlob(buffer, {
+  type: "image/uncompressed",
+  width,
+  height,
+  colorSpace: "RGB",
+  pixelFormat: "RGB",
+  components: 3,
+  componentSize: 8,
+  hasAlpha: false
+});
+
+const url = URL.createObjectURL(blob);
+img.src = url;
+// 记得 revoke 旧 url，避免内存增长
+```
+
 ---
 
 ## 6. 注意事项
 *   **Mixbox 许可**：Mixbox 使用 **CC BY-NC 4.0** 协议，仅限非商业用途。若需商用发布需联系作者授权。
-*   **性能**：避免在 `pointermove` 中全屏 `putImageData`，必须使用局部更新。
+*   **性能（显示层）**：`ImageBlob + <img>` 方案会频繁生成 object URL：务必 `revokeObjectURL`，并用 `requestAnimationFrame`/最小间隔节流刷新。
+*   **性能（计算层）**：画布尺寸变大时，Mixbox 的逐像素计算会显著增加；必要时考虑 dirty rect、降采样（内部更小 buffer，显示拉伸）或降低 stamp 密度。
+*   **一致性**：RGB 与 Mixbox 混用时，需保证 `pixelBuffer` 与 `latentBuffer` 同步策略一致（本项目通过 `latent_dirty` 修复跨模式不融合）。
+*   **兼容性**：不同 PS/UXP 版本对 `ImageBlob(type:"image/uncompressed")` 的参数容忍度可能不同；遇到构造器异常优先检查入参类型（`Uint8Array`）与像素格式字段。
+*   **内存**：如果以后要做“历史/撤销/多层”，不要无上限缓存整幅 `pixelBuffer` 快照；建议以小步增量或限制层数/分辨率。
+*   **事件**：`<img>` 默认可拖拽，已禁用 `draggable`；若后续遇到触摸/手写笔问题，优先检查 `touch-action:none` 与指针坐标缩放。
