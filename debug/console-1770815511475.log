@@ -1,0 +1,44 @@
+src/main.js:215 [palette] plugin create
+src/main.js:424 [palette] DOMContentLoaded
+src/main.js:233 [palette] doInit called
+src/main.js:244 [palette] surface found, w=300 h=300
+src/main.js:251 [palette] pointer events bound
+src/main.js:288 [palette] PS foreground: rgb(255,228,40)
+src/main.js:51 [palette] buffers initialized (RGB + Latent)
+src/main.js:299 [palette] init complete, mixbox loaded: true
+src/main.js:225 [palette] panel show fired
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:128 [palette] pressure not supported (pointerType=mouse pressure=0.5). Check Wacom driver mode/Windows Ink.
+getEffectiveOpacity @ src/main.js:128
+onPointerDown @ src/main.js:327
+(anonymous) @ uxp://uxp-internal/domjs_scripts.js:2
+D @ uxp://uxp-internal/domjs_scripts.js:2
+(anonymous) @ uxp://uxp-internal/domjs_scripts.js:2
+L @ uxp://uxp-internal/domjs_scripts.js:2
+P @ uxp://uxp-internal/domjs_scripts.js:2
+e @ uxp://uxp-internal/domjs_scripts.js:2
+_retargetAndDispatchNativeEvent @ uxp://uxp-internal/domjs_scripts.js:2
+onEvent @ uxp://uxp-internal/domjs_scripts.js:2
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5
+src/main.js:308 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:313 [palette] pointerType=mouse pressure=0.5

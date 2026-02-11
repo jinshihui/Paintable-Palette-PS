@@ -8,7 +8,7 @@ let surface_el;
 let initialized = false;
 let isDrawing = false;
 let brushRadius = 20;
-let brushOpacity = 0.15;
+let brushOpacity = 0.10;
 let brushColor = { r: 0, g: 0, b: 0 };
 let pickMode = false;
 let colorMode = "rgb"; // "rgb" or "mixbox"
