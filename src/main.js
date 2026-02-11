@@ -2,6 +2,7 @@ const { entrypoints } = require("uxp");
 const ps = require("photoshop");
 const app = ps.app;
 const { executeAsModal } = ps.core;
+var mixbox = require("./lib/mixbox");
 
 let canvas, ctx;
 let initialized = false;
@@ -10,21 +11,32 @@ let brushRadius = 20;
 let brushOpacity = 0.6;
 let brushColor = { r: 0, g: 0, b: 0 };
 let pickMode = false;
+let colorMode = "rgb"; // "rgb" or "mixbox"
 let lastX = null, lastY = null;
 
 const BG_R = 232, BG_G = 232, BG_B = 232;
 const W = 300, H = 300;
 
-// pixelBuffer 追踪画布颜色（UXP 不支持 getImageData）
+// --- Buffer 系统 ---
+// pixelBuffer: RGB 值，用于吸色和 RGB 模式混色
+// latentBuffer: Mixbox latent[7] 值，用于 Mixbox 模式混色
 var pixelBuffer = null;
+var latentBuffer = null;
+var LATENT_SIZE = 7;  // mixbox latent 维度
 
-function initPixelBuffer() {
+function initBuffers() {
     pixelBuffer = new Uint8Array(W * H * 3);
+    latentBuffer = new Float64Array(W * H * LATENT_SIZE);
+    var bgLatent = mixbox.rgbToLatent([BG_R, BG_G, BG_B]);
     for (var i = 0; i < W * H; i++) {
         pixelBuffer[i * 3] = BG_R;
         pixelBuffer[i * 3 + 1] = BG_G;
         pixelBuffer[i * 3 + 2] = BG_B;
+        for (var j = 0; j < LATENT_SIZE; j++) {
+            latentBuffer[i * LATENT_SIZE + j] = bgLatent[j];
+        }
     }
+    console.log("[palette] buffers initialized (RGB + Latent)");
 }
 
 function getPixel(x, y) {
@@ -34,20 +46,54 @@ function getPixel(x, y) {
     return { r: pixelBuffer[idx], g: pixelBuffer[idx + 1], b: pixelBuffer[idx + 2] };
 }
 
-function updatePixelBuffer(cx, cy, radius, rgb) {
+// RGB 模式：简单 alpha-blend
+function updatePixelBufferRGB(cx, cy, radius, rgb) {
     var x0 = Math.max(0, Math.floor(cx - radius));
     var y0 = Math.max(0, Math.floor(cy - radius));
     var x1 = Math.min(W, Math.ceil(cx + radius));
     var y1 = Math.min(H, Math.ceil(cy + radius));
+    var a = brushOpacity;
     for (var py = y0; py < y1; py++) {
         for (var px = x0; px < x1; px++) {
             var dx = px - cx, dy = py - cy;
             if (dx * dx + dy * dy >= radius * radius) continue;
-            var a = brushOpacity;
             var idx = (py * W + px) * 3;
             pixelBuffer[idx] = Math.round((1 - a) * pixelBuffer[idx] + a * rgb.r);
             pixelBuffer[idx + 1] = Math.round((1 - a) * pixelBuffer[idx + 1] + a * rgb.g);
             pixelBuffer[idx + 2] = Math.round((1 - a) * pixelBuffer[idx + 2] + a * rgb.b);
+        }
+    }
+}
+
+// Mixbox 模式：在 latent space 混合，然后转回 RGB
+function updatePixelBufferMixbox(cx, cy, radius, rgb) {
+    var x0 = Math.max(0, Math.floor(cx - radius));
+    var y0 = Math.max(0, Math.floor(cy - radius));
+    var x1 = Math.min(W, Math.ceil(cx + radius));
+    var y1 = Math.min(H, Math.ceil(cy + radius));
+    var a = brushOpacity;
+    var brushLatent = mixbox.rgbToLatent([rgb.r, rgb.g, rgb.b]);
+
+    for (var py = y0; py < y1; py++) {
+        for (var px = x0; px < x1; px++) {
+            var dx = px - cx, dy = py - cy;
+            if (dx * dx + dy * dy >= radius * radius) continue;
+
+            var li = (py * W + px) * LATENT_SIZE;
+            // latent-space 线性插值
+            for (var j = 0; j < LATENT_SIZE; j++) {
+                latentBuffer[li + j] = (1 - a) * latentBuffer[li + j] + a * brushLatent[j];
+            }
+            // 转回 RGB
+            var latent = [];
+            for (var j = 0; j < LATENT_SIZE; j++) {
+                latent[j] = latentBuffer[li + j];
+            }
+            var result = mixbox.latentToRgb(latent);
+            var ri = (py * W + px) * 3;
+            pixelBuffer[ri] = result[0];
+            pixelBuffer[ri + 1] = result[1];
+            pixelBuffer[ri + 2] = result[2];
         }
     }
 }
@@ -96,10 +142,15 @@ function doInit() {
     canvas.addEventListener("pointerleave", onPointerUp);
     console.log("[palette] pointer events bound");
 
-    // 也尝试 click 事件看能不能触发
-    canvas.addEventListener("click", function (e) {
-        console.log("[palette] CLICK on canvas, clientX=" + e.clientX + " clientY=" + e.clientY);
-    });
+    // 混色模式切换
+    var modeEl = document.getElementById("select-mode");
+    if (modeEl) {
+        modeEl.addEventListener("change", function (e) {
+            colorMode = e.target.value;
+            console.log("[palette] colorMode =", colorMode);
+            setStatus("Mode: " + colorMode);
+        });
+    }
 
     // 工具栏
     var sizeEl = document.getElementById("slider-size");
@@ -133,10 +184,10 @@ function doInit() {
         console.error("[palette] read foreground failed:", err);
     }
 
-    initPixelBuffer();
+    initBuffers();
     initialized = true;
-    setStatus("Ready");
-    console.log("[palette] init complete");
+    setStatus("Ready (" + colorMode + ")");
+    console.log("[palette] init complete, mixbox loaded:", typeof mixbox.lerp === "function");
 }
 
 function isPickMode(e) {
@@ -212,14 +263,38 @@ function getPos(e) {
 }
 
 function drawStamp(cx, cy) {
-    ctx.globalAlpha = brushOpacity;
-    ctx.fillStyle = "rgb(" + brushColor.r + "," + brushColor.g + "," + brushColor.b + ")";
-    ctx.beginPath();
-    ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
-    ctx.fill();
+    if (colorMode === "mixbox") {
+        // Mixbox 模式：逐像素混色后用 fillRect 渲染
+        updatePixelBufferMixbox(cx, cy, brushRadius, brushColor);
+        renderRegionFromBuffer(cx, cy, brushRadius);
+    } else {
+        // RGB 模式：canvas 原生 alpha-blend
+        ctx.globalAlpha = brushOpacity;
+        ctx.fillStyle = "rgb(" + brushColor.r + "," + brushColor.g + "," + brushColor.b + ")";
+        ctx.beginPath();
+        ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        updatePixelBufferRGB(cx, cy, brushRadius, brushColor);
+    }
+}
+
+// 从 pixelBuffer 渲染指定区域到 canvas（Mixbox 模式下使用）
+function renderRegionFromBuffer(cx, cy, radius) {
+    var x0 = Math.max(0, Math.floor(cx - radius));
+    var y0 = Math.max(0, Math.floor(cy - radius));
+    var x1 = Math.min(W, Math.ceil(cx + radius));
+    var y1 = Math.min(H, Math.ceil(cy + radius));
     ctx.globalAlpha = 1.0;
-    // 同步到 pixelBuffer
-    updatePixelBuffer(cx, cy, brushRadius, brushColor);
+    for (var py = y0; py < y1; py++) {
+        for (var px = x0; px < x1; px++) {
+            var dx = px - cx, dy = py - cy;
+            if (dx * dx + dy * dy >= radius * radius) continue;
+            var idx = (py * W + px) * 3;
+            ctx.fillStyle = "rgb(" + pixelBuffer[idx] + "," + pixelBuffer[idx + 1] + "," + pixelBuffer[idx + 2] + ")";
+            ctx.fillRect(px, py, 1, 1);
+        }
+    }
 }
 
 function drawStrokeTo(x, y) {
@@ -249,8 +324,8 @@ function doClear() {
     ctx.globalAlpha = 1.0;
     ctx.fillStyle = "rgb(232,232,232)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    initPixelBuffer();
-    setStatus("Cleared");
+    initBuffers();
+    setStatus("Cleared (" + colorMode + ")");
 }
 
 function updateSwatch(r, g, b) {
