@@ -9,31 +9,27 @@
       "type": "panel",
       "id": "main",
       "label": "Mixbox Palette",
-      "minWidth": 300,
-      "minHeight": 300,
-      "maxWidth": 800,
-      "maxHeight": 800,
-      "preferredWidth": 512,
-      "preferredHeight": 512,
-      "icons": [
-        {
-          "width": 23,
-          "height": 23,
-          "path": "assets/icon.png"
-        }
-      ]
+      "minimumSize": {
+        "width": 200,
+        "height": 200
+      },
+      "maximumSize": {
+        "width": 1200,
+        "height": 1200
+      },
+      "preferredDockedSize": {
+        "width": 300,
+        "height": 400
+      },
+      "preferredFloatingSize": {
+        "width": 512,
+        "height": 560
+      }
     }
   ],
   "requiredPermissions": {
-    "localFileSystem": "full"
+    "localFileSystem": "fullAccess"
   },
-  "icons": [
-    {
-      "width": 23,
-      "height": 23,
-      "path": "assets/icon.png"
-    }
-  ],
   "host": [
     {
       "app": "PS",

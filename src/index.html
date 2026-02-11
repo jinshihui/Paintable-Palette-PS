@@ -1,22 +1,37 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Mixbox Palette</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="toolbar">
-            <button id="btn-clear">Clear</button>
+            <label>Size
+                <input type="range" id="slider-size" min="2" max="80" value="20">
+            </label>
+            <label>Opacity
+                <input type="range" id="slider-opacity" min="1" max="100" value="60">
+            </label>
+            <label>Hardness
+                <input type="range" id="slider-hardness" min="0" max="100" value="50">
+            </label>
             <select id="select-mode">
                 <option value="rgb">RGB</option>
                 <option value="mixbox">Mixbox</option>
             </select>
-            <!-- Add more controls here as needed -->
+            <button id="btn-clear">Clear</button>
+        </div>
+        <div class="color-preview">
+            <span id="fg-swatch" title="PS Foreground Color"></span>
+            <span id="status-text">Ready</span>
         </div>
         <canvas id="palette-canvas" width="512" height="512"></canvas>
     </div>
     <script src="main.js"></script>
 </body>
+
 </html>
