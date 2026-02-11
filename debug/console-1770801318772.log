@@ -1,0 +1,20 @@
+src/main.js:170 [palette] plugin create
+src/main.js:376 [palette] DOMContentLoaded
+src/main.js:188 [palette] doInit called
+src/main.js:199 [palette] surface found, w=300 h=300
+src/main.js:206 [palette] pointer events bound
+src/main.js:243 [palette] PS foreground: rgb(255,120,52)
+src/main.js:49 [palette] buffers initialized (RGB + Latent)
+src/main.js:254 [palette] init complete, mixbox loaded: true
+src/main.js:180 [palette] panel show fired
+src/main.js:213 [palette] colorMode = rgb
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:213 [palette] colorMode = mixbox
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
+src/main.js:263 [palette] POINTERDOWN altKey=false pickMode=false
