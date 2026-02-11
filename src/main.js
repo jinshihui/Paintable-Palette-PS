@@ -4,7 +4,7 @@ const app = ps.app;
 const { executeAsModal } = ps.core;
 var mixbox = require("./lib/mixbox");
 
-let canvas, ctx;
+let surface_el;
 let initialized = false;
 let isDrawing = false;
 let brushRadius = 20;
@@ -24,6 +24,16 @@ var pixelBuffer = null;
 var latentBuffer = null;
 var LATENT_SIZE = 7;  // mixbox latent 维度
 
+let rgb_array_buffer = null;
+let rgb_buffer = null;
+let last_object_url = null;
+let is_render_scheduled = false;
+let needs_render = false;
+let last_render_ms = 0;
+const MIN_RENDER_INTERVAL_MS = 33;
+var latent_tmp = null;
+let has_render_error = false;
+
 function initBuffers() {
     pixelBuffer = new Uint8Array(W * H * 3);
     latentBuffer = new Float64Array(W * H * LATENT_SIZE);
@@ -37,6 +47,63 @@ function initBuffers() {
         }
     }
     console.log("[palette] buffers initialized (RGB + Latent)");
+}
+
+function renderToSurfaceIfNeeded() {
+    if (!needs_render) {
+        is_render_scheduled = false;
+        return;
+    }
+    if (has_render_error) {
+        needs_render = false;
+        is_render_scheduled = false;
+        return;
+    }
+
+    var now = Date.now();
+    if (now - last_render_ms < MIN_RENDER_INTERVAL_MS) {
+        requestAnimationFrame(renderToSurfaceIfNeeded);
+        return;
+    }
+    last_render_ms = now;
+
+    if (!rgb_array_buffer) rgb_array_buffer = new ArrayBuffer(W * H * 3);
+    if (!rgb_buffer) rgb_buffer = new Uint8Array(rgb_array_buffer);
+    rgb_buffer.set(pixelBuffer);
+
+    try {
+        var blob = new ImageBlob(rgb_buffer, {
+            type: "image/uncompressed",
+            width: W,
+            height: H,
+            colorSpace: "RGB",
+            colorProfile: "",
+            pixelFormat: "RGB",
+            components: 3,
+            componentSize: 8,
+            hasAlpha: false
+        });
+
+        var object_url = URL.createObjectURL(blob);
+        surface_el.src = object_url;
+        if (last_object_url) URL.revokeObjectURL(last_object_url);
+        last_object_url = object_url;
+    } catch (err) {
+        has_render_error = true;
+        console.error("[palette] render ImageBlob failed:", err);
+        console.error("[palette] ImageBlob input typeof:", typeof rgb_array_buffer, "isArrayBuffer:", (rgb_array_buffer instanceof ArrayBuffer));
+        setStatus("ERROR: render failed (see console)");
+    }
+
+    needs_render = false;
+    is_render_scheduled = false;
+}
+
+function scheduleRenderToSurface() {
+    needs_render = true;
+    if (is_render_scheduled) return;
+    is_render_scheduled = true;
+    requestAnimationFrame(renderToSurfaceIfNeeded);
 }
 
 function getPixel(x, y) {
@@ -73,6 +140,7 @@ function updatePixelBufferMixbox(cx, cy, radius, rgb) {
     var y1 = Math.min(H, Math.ceil(cy + radius));
     var a = brushOpacity;
     var brushLatent = mixbox.rgbToLatent([rgb.r, rgb.g, rgb.b]);
+    if (!latent_tmp) latent_tmp = new Array(LATENT_SIZE);
 
     for (var py = y0; py < y1; py++) {
         for (var px = x0; px < x1; px++) {
@@ -85,11 +153,10 @@ function updatePixelBufferMixbox(cx, cy, radius, rgb) {
                 latentBuffer[li + j] = (1 - a) * latentBuffer[li + j] + a * brushLatent[j];
             }
             // 转回 RGB
-            var latent = [];
             for (var j = 0; j < LATENT_SIZE; j++) {
-                latent[j] = latentBuffer[li + j];
+                latent_tmp[j] = latentBuffer[li + j];
             }
-            var result = mixbox.latentToRgb(latent);
+            var result = mixbox.latentToRgb(latent_tmp);
             var ri = (py * W + px) * 3;
             pixelBuffer[ri] = result[0];
             pixelBuffer[ri + 1] = result[1];
@@ -101,7 +168,11 @@ function updatePixelBufferMixbox(cx, cy, radius, rgb) {
 entrypoints.setup({
     plugin: {
         create: function () { console.log("[palette] plugin create"); },
-        destroy: function () { console.log("[palette] plugin destroy"); }
+        destroy: function () {
+            console.log("[palette] plugin destroy");
+            if (last_object_url) URL.revokeObjectURL(last_object_url);
+            last_object_url = null;
+        }
     },
     panels: {
         main: {
@@ -115,31 +186,23 @@ entrypoints.setup({
 
 function doInit() {
     console.log("[palette] doInit called");
-    canvas = document.getElementById("palette-canvas");
-    if (!canvas) {
-        console.error("[palette] canvas element NOT found!");
+    surface_el = document.getElementById("palette-surface");
+    if (!surface_el) {
+        console.error("[palette] palette surface element NOT found!");
         return;
     }
-    console.log("[palette] canvas found, w=" + canvas.width + " h=" + canvas.height);
-
-    ctx = canvas.getContext("2d");
-    if (!ctx) {
-        console.error("[palette] getContext('2d') returned null!");
+    if (typeof ImageBlob !== "function" || !URL || typeof URL.createObjectURL !== "function") {
+        console.error("[palette] ImageBlob/URL.createObjectURL not available in this UXP environment");
+        setStatus("ERROR: ImageBlob not available");
         return;
     }
-    console.log("[palette] 2d context OK");
-
-    // 初始化底色
-    ctx.globalAlpha = 1.0;
-    ctx.fillStyle = "rgb(232,232,232)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    console.log("[palette] fillRect done (bg)");
+    console.log("[palette] surface found, w=" + W + " h=" + H);
 
     // 绑定 pointer 事件
-    canvas.addEventListener("pointerdown", onPointerDown);
-    canvas.addEventListener("pointermove", onPointerMove);
-    canvas.addEventListener("pointerup", onPointerUp);
-    canvas.addEventListener("pointerleave", onPointerUp);
+    surface_el.addEventListener("pointerdown", onPointerDown);
+    surface_el.addEventListener("pointermove", onPointerMove);
+    surface_el.addEventListener("pointerup", onPointerUp);
+    surface_el.addEventListener("pointerleave", onPointerUp);
     console.log("[palette] pointer events bound");
 
     // 混色模式切换
@@ -155,7 +218,6 @@ function doInit() {
     // 工具栏
     var sizeEl = document.getElementById("slider-size");
     var opacityEl = document.getElementById("slider-opacity");
-    var hardnessEl = document.getElementById("slider-hardness");
     var clearEl = document.getElementById("btn-clear");
     if (sizeEl) sizeEl.addEventListener("input", function (e) { brushRadius = parseInt(e.target.value, 10); });
     if (opacityEl) opacityEl.addEventListener("input", function (e) { brushOpacity = parseInt(e.target.value, 10) / 100; });
@@ -185,6 +247,8 @@ function doInit() {
     }
 
     initBuffers();
+    has_render_error = false;
+    scheduleRenderToSurface();
     initialized = true;
     setStatus("Ready (" + colorMode + ")");
     console.log("[palette] init complete, mixbox loaded:", typeof mixbox.lerp === "function");
@@ -253,9 +317,9 @@ function onPointerUp() {
 }
 
 function getPos(e) {
-    var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
+    var rect = surface_el.getBoundingClientRect();
+    var scaleX = W / rect.width;
+    var scaleY = H / rect.height;
     return {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY
@@ -263,41 +327,9 @@ function getPos(e) {
 }
 
 function drawStamp(cx, cy) {
-    if (colorMode === "mixbox") {
-        // Mixbox：buffer 逐像素 latent 混色 + scanline 渲染（WYSIWYG）
-        updatePixelBufferMixbox(cx, cy, brushRadius, brushColor);
-        renderStampScanline(cx, cy, brushRadius);
-    } else {
-        // RGB：canvas 原生 alpha-blend + buffer 同步
-        ctx.globalAlpha = brushOpacity;
-        ctx.fillStyle = "rgb(" + brushColor.r + "," + brushColor.g + "," + brushColor.b + ")";
-        ctx.beginPath();
-        ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
-        updatePixelBufferRGB(cx, cy, brushRadius, brushColor);
-    }
-}
-
-// 逐行从 pixelBuffer 渲染 stamp 区域到 canvas
-// 每行 1 次 fillRect（取行中心像素色），radius=20 约 40 次调用
-function renderStampScanline(cx, cy, radius) {
-    var y0 = Math.max(0, Math.floor(cy - radius));
-    var y1 = Math.min(H, Math.ceil(cy + radius));
-    var r2 = radius * radius;
-    ctx.globalAlpha = 1.0;
-    for (var py = y0; py < y1; py++) {
-        var dy = py - cy;
-        var halfW = Math.sqrt(r2 - dy * dy);
-        var x0 = Math.max(0, Math.floor(cx - halfW));
-        var x1 = Math.min(W, Math.ceil(cx + halfW));
-        if (x1 <= x0) continue;
-        // 取这一行中心像素的颜色
-        var mx = Math.max(x0, Math.min(x1 - 1, Math.round(cx)));
-        var idx = (py * W + mx) * 3;
-        ctx.fillStyle = "rgb(" + pixelBuffer[idx] + "," + pixelBuffer[idx + 1] + "," + pixelBuffer[idx + 2] + ")";
-        ctx.fillRect(x0, py, x1 - x0, 1);
-    }
+    if (colorMode === "mixbox") updatePixelBufferMixbox(cx, cy, brushRadius, brushColor);
+    else updatePixelBufferRGB(cx, cy, brushRadius, brushColor);
+    scheduleRenderToSurface();
 }
 
 function drawStrokeTo(x, y) {
@@ -324,10 +356,9 @@ function drawStrokeTo(x, y) {
 
 function doClear() {
     console.log("[palette] Clear clicked");
-    ctx.globalAlpha = 1.0;
-    ctx.fillStyle = "rgb(232,232,232)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
     initBuffers();
+    has_render_error = false;
+    scheduleRenderToSurface();
     setStatus("Cleared (" + colorMode + ")");
 }
 
