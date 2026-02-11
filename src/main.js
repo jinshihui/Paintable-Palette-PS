@@ -8,9 +8,48 @@ let isDrawing = false;
 let brushRadius = 20;
 let brushOpacity = 0.6;
 let brushColor = { r: 0, g: 0, b: 0 };
+let pickMode = false;
 let lastX = null, lastY = null;
 
 const BG_R = 232, BG_G = 232, BG_B = 232;
+const W = 300, H = 300;
+
+// pixelBuffer 追踪画布颜色（UXP 不支持 getImageData）
+var pixelBuffer = null;
+
+function initPixelBuffer() {
+    pixelBuffer = new Uint8Array(W * H * 3);
+    for (var i = 0; i < W * H; i++) {
+        pixelBuffer[i * 3] = BG_R;
+        pixelBuffer[i * 3 + 1] = BG_G;
+        pixelBuffer[i * 3 + 2] = BG_B;
+    }
+}
+
+function getPixel(x, y) {
+    var px = Math.max(0, Math.min(W - 1, Math.round(x)));
+    var py = Math.max(0, Math.min(H - 1, Math.round(y)));
+    var idx = (py * W + px) * 3;
+    return { r: pixelBuffer[idx], g: pixelBuffer[idx + 1], b: pixelBuffer[idx + 2] };
+}
+
+function updatePixelBuffer(cx, cy, radius, rgb) {
+    var x0 = Math.max(0, Math.floor(cx - radius));
+    var y0 = Math.max(0, Math.floor(cy - radius));
+    var x1 = Math.min(W, Math.ceil(cx + radius));
+    var y1 = Math.min(H, Math.ceil(cy + radius));
+    for (var py = y0; py < y1; py++) {
+        for (var px = x0; px < x1; px++) {
+            var dx = px - cx, dy = py - cy;
+            if (dx * dx + dy * dy >= radius * radius) continue;
+            var a = brushOpacity;
+            var idx = (py * W + px) * 3;
+            pixelBuffer[idx] = Math.round((1 - a) * pixelBuffer[idx] + a * rgb.r);
+            pixelBuffer[idx + 1] = Math.round((1 - a) * pixelBuffer[idx + 1] + a * rgb.g);
+            pixelBuffer[idx + 2] = Math.round((1 - a) * pixelBuffer[idx + 2] + a * rgb.b);
+        }
+    }
+}
 
 entrypoints.setup({
     plugin: {
@@ -49,13 +88,6 @@ function doInit() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     console.log("[palette] fillRect done (bg)");
 
-    // 测试绘图：画一个红色圆
-    ctx.fillStyle = "rgb(255,0,0)";
-    ctx.beginPath();
-    ctx.arc(150, 150, 30, 0, Math.PI * 2);
-    ctx.fill();
-    console.log("[palette] test red circle drawn at center");
-
     // 绑定 pointer 事件
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
@@ -77,12 +109,16 @@ function doInit() {
     if (opacityEl) opacityEl.addEventListener("input", function (e) { brushOpacity = parseInt(e.target.value, 10) / 100; });
     if (clearEl) clearEl.addEventListener("click", doClear);
 
-    // Alt 键
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Alt" || e.keyCode === 18) {
-            console.log("[palette] Alt DOWN");
-        }
-    });
+    // 吸色模式切换按钮
+    var pickBtn = document.getElementById("btn-pick");
+    if (pickBtn) {
+        pickBtn.addEventListener("click", function () {
+            pickMode = !pickMode;
+            pickBtn.textContent = pickMode ? "Pick ✓" : "Pick";
+            setStatus(pickMode ? "Pick mode ON (click canvas to pick)" : "Paint mode");
+            console.log("[palette] pickMode =", pickMode);
+        });
+    }
 
     // 读前景色到色块
     try {
@@ -96,35 +132,64 @@ function doInit() {
         console.error("[palette] read foreground failed:", err);
     }
 
+    initPixelBuffer();
     initialized = true;
-    setStatus("Ready - test circle should be visible");
+    setStatus("Ready");
     console.log("[palette] init complete");
 }
 
+function isPickMode(e) {
+    // e.altKey 读 pointer 事件的修饰键（绕过 PS 拦截 keydown）
+    return pickMode || (e && e.altKey);
+}
+
 function onPointerDown(e) {
-    console.log("[palette] POINTERDOWN clientX=" + e.clientX + " clientY=" + e.clientY);
+    console.log("[palette] POINTERDOWN altKey=" + e.altKey + " pickMode=" + pickMode);
     isDrawing = true;
     lastX = null;
     lastY = null;
-
-    // 读前景色
-    try {
-        var fg = app.foregroundColor;
-        brushColor = { r: Math.round(fg.rgb.red), g: Math.round(fg.rgb.green), b: Math.round(fg.rgb.blue) };
-        updateSwatch(brushColor.r, brushColor.g, brushColor.b);
-    } catch (err) {
-        console.warn("[palette] read fg failed in pointerdown:", err);
-    }
-
     var pos = getPos(e);
-    console.log("[palette] canvas pos: x=" + pos.x + " y=" + pos.y);
-    drawStamp(pos.x, pos.y);
+
+    if (isPickMode(e)) {
+        doPickColor(pos.x, pos.y);
+    } else {
+        // 读前景色
+        try {
+            var fg = app.foregroundColor;
+            brushColor = { r: Math.round(fg.rgb.red), g: Math.round(fg.rgb.green), b: Math.round(fg.rgb.blue) };
+            updateSwatch(brushColor.r, brushColor.g, brushColor.b);
+        } catch (err) {
+            console.warn("[palette] read fg failed:", err);
+        }
+        setStatus("Paint: rgb(" + brushColor.r + "," + brushColor.g + "," + brushColor.b + ")");
+        drawStamp(pos.x, pos.y);
+    }
 }
 
 function onPointerMove(e) {
     if (!isDrawing) return;
     var pos = getPos(e);
-    drawStrokeTo(pos.x, pos.y);
+    if (isPickMode(e)) {
+        doPickColor(pos.x, pos.y);
+    } else {
+        drawStrokeTo(pos.x, pos.y);
+    }
+}
+
+function doPickColor(x, y) {
+    var rgb = getPixel(x, y);
+    console.log("[palette] PICK rgb(" + rgb.r + "," + rgb.g + "," + rgb.b + ")");
+    try {
+        var c = new SolidColor();
+        c.rgb.red = rgb.r;
+        c.rgb.green = rgb.g;
+        c.rgb.blue = rgb.b;
+        app.foregroundColor = c;
+    } catch (err) {
+        console.warn("[palette] setForeground failed:", err);
+    }
+    updateSwatch(rgb.r, rgb.g, rgb.b);
+    setStatus("Picked: rgb(" + rgb.r + "," + rgb.g + "," + rgb.b + ")");
 }
 
 function onPointerUp() {
@@ -150,6 +215,8 @@ function drawStamp(cx, cy) {
     ctx.arc(cx, cy, brushRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1.0;
+    // 同步到 pixelBuffer
+    updatePixelBuffer(cx, cy, brushRadius, brushColor);
 }
 
 function drawStrokeTo(x, y) {
@@ -179,6 +246,7 @@ function doClear() {
     ctx.globalAlpha = 1.0;
     ctx.fillStyle = "rgb(232,232,232)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    initPixelBuffer();
     setStatus("Cleared");
 }
 
