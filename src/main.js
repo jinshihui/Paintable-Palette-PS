@@ -22,6 +22,7 @@ const W = 300, H = 300;
 // latentBuffer: Mixbox latent[7] 值，用于 Mixbox 模式混色
 var pixelBuffer = null;
 var latentBuffer = null;
+var latent_dirty = null;
 var LATENT_SIZE = 7;  // mixbox latent 维度
 
 let rgb_array_buffer = null;
@@ -37,6 +38,7 @@ let has_render_error = false;
 function initBuffers() {
     pixelBuffer = new Uint8Array(W * H * 3);
     latentBuffer = new Float64Array(W * H * LATENT_SIZE);
+    latent_dirty = new Uint8Array(W * H);
     var bgLatent = mixbox.rgbToLatent([BG_R, BG_G, BG_B]);
     for (var i = 0; i < W * H; i++) {
         pixelBuffer[i * 3] = BG_R;
@@ -124,6 +126,7 @@ function updatePixelBufferRGB(cx, cy, radius, rgb) {
         for (var px = x0; px < x1; px++) {
             var dx = px - cx, dy = py - cy;
             if (dx * dx + dy * dy >= radius * radius) continue;
+            latent_dirty[py * W + px] = 1;
             var idx = (py * W + px) * 3;
             pixelBuffer[idx] = Math.round((1 - a) * pixelBuffer[idx] + a * rgb.r);
             pixelBuffer[idx + 1] = Math.round((1 - a) * pixelBuffer[idx + 1] + a * rgb.g);
@@ -147,7 +150,16 @@ function updatePixelBufferMixbox(cx, cy, radius, rgb) {
             var dx = px - cx, dy = py - cy;
             if (dx * dx + dy * dy >= radius * radius) continue;
 
-            var li = (py * W + px) * LATENT_SIZE;
+            var p = py * W + px;
+            var li = p * LATENT_SIZE;
+            var ri = p * 3;
+            if (latent_dirty[p]) {
+                var baseLatent = mixbox.rgbToLatent([pixelBuffer[ri], pixelBuffer[ri + 1], pixelBuffer[ri + 2]]);
+                for (var j = 0; j < LATENT_SIZE; j++) {
+                    latentBuffer[li + j] = baseLatent[j];
+                }
+                latent_dirty[p] = 0;
+            }
             // latent-space 线性插值
             for (var j = 0; j < LATENT_SIZE; j++) {
                 latentBuffer[li + j] = (1 - a) * latentBuffer[li + j] + a * brushLatent[j];
@@ -157,7 +169,6 @@ function updatePixelBufferMixbox(cx, cy, radius, rgb) {
                 latent_tmp[j] = latentBuffer[li + j];
             }
             var result = mixbox.latentToRgb(latent_tmp);
-            var ri = (py * W + px) * 3;
             pixelBuffer[ri] = result[0];
             pixelBuffer[ri + 1] = result[1];
             pixelBuffer[ri + 2] = result[2];
