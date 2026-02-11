@@ -9,10 +9,6 @@ body {
 
 .container {
     padding: 6px;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    box-sizing: border-box;
 }
 
 .toolbar {
@@ -48,21 +44,12 @@ body {
 }
 
 #fg-swatch {
-    display: inline-block;
     width: 20px;
     height: 20px;
     border: 1px solid #888;
-    background-color: #000;
+    background-color: #000000;
 }
 
 #status-text {
     color: #999;
-}
-
-canvas {
-    background-color: #e8e8e8;
-    cursor: crosshair;
-    flex: 1;
-    /* 保持内部像素不缩放模糊 */
-    image-rendering: pixelated;
 }

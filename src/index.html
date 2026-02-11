@@ -26,10 +26,11 @@
             <button id="btn-clear">Clear</button>
         </div>
         <div class="color-preview">
-            <span id="fg-swatch" title="PS Foreground Color"></span>
+            <div id="fg-swatch" title="PS Foreground Color"></div>
             <span id="status-text">Ready</span>
         </div>
-        <canvas id="palette-canvas" width="512" height="512"></canvas>
+        <canvas id="palette-canvas" width="300" height="300"
+            style="display:block; border:1px solid #555; cursor:crosshair; background:#e8e8e8;"></canvas>
     </div>
     <script src="main.js"></script>
 </body>
