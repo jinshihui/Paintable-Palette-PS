@@ -1,9 +1,4 @@
 # Photoshop UXP 调色盘面板插件开发文档 (Mixbox Palette Panel)
-
-本文档整合了原有的 `palette_plugin.md` 和 `palette_plugin2.md`，作为本项目的权威开发指南。
-
----
-
 ## 1. 项目概述
 
 ### 1.1 目标
@@ -82,11 +77,12 @@
 
 ### Phase 1: 基础调色盘闭环 (MVP) ✅ 已完成
 
-#### 1a. Canvas 笔刷（arc-based）
+#### 1a. 笔刷与显示（当前实现）
 - 监听 `pointerdown`/`pointermove`/`pointerup` 事件 ✅
 - 连续轨迹采样：相邻点距离 > `radius * 0.35` 时插入 stamp ✅
-- 每个 stamp 用 `ctx.arc()` + `ctx.fill()` + `globalAlpha` 绘制 ✅
-- **注意**：UXP Canvas 不支持 `getImageData`/`putImageData`，因此用 `pixelBuffer` (Uint8Array) 在 JS 侧追踪像素颜色
+- 每个 stamp 更新 `pixelBuffer`（RGB 或 Mixbox 分支）✅
+- 显示层：`pixelBuffer` → `ImageBlob(type:"image/uncompressed")` → `<img>`，并用 `requestAnimationFrame` 节流刷新 ✅
+- **注意**：Photoshop UXP 的 `<canvas>` 能力受限（例如 `getImageData/putImageData` 可能不可用），本项目不再依赖 canvas 的像素 API
 
 #### 1b. PS 前景色双向同步
 - **读前景色**：`pointerdown` 时读 `app.foregroundColor.rgb`，缓存为笔刷色 ✅
@@ -94,7 +90,7 @@
 - **关键**：写入前景色必须包裹在 `require("photoshop").core.executeAsModal()` 内
 
 #### 1c. 交互逻辑
-- **左键拖动**：涂抹（读前景色 → arc stamp） ✅
+- **左键拖动**：涂抹（读前景色 → stamp 更新 buffer → 刷新 surface） ✅
 - **Alt + 左键** 或 **Pick 按钮**：吸色模式 ✅
 - **Clear 按钮**：清空画布 + 重置 pixelBuffer ✅
 
@@ -128,9 +124,15 @@
 - [x] 新增 `latentBuffer` (Float64Array, W×H×7) 存储每像素的 Mixbox latent 值
 - [x] `pixelBuffer` 保留用于吸色（从 latent 转回 RGB）
 - [x] `drawStamp` 中根据 `colorMode` 分支：
-  - **RGB 模式**：canvas 原生 `arc()` alpha-blend + `pixelBuffer` 同步 ✅
-  - **Mixbox 模式**：逐像素 latent 混合 → 转回 RGB → scanline 渲染到 canvas ✅
+  - **RGB 模式**：逐像素 alpha-blend 更新 `pixelBuffer` ✅
+  - **Mixbox 模式**：逐像素 latent 混合 → 转回 RGB 写回 `pixelBuffer` ✅
 - [x] `doClear` 时同步重置 `latentBuffer` 和 `pixelBuffer`
+
+#### 2g. 打包与安装（CCX）✅
+- [x] UDT 打包要求：manifest 里需配置 icons（包含 panel entrypoints 的 icons）
+- [x] 增加图标资源：`assets/icon-23.png`、`assets/icon-46.png`、`assets/icon-48.png`、`assets/icon-96.png`
+- [x] 已可通过 UDT 打包生成 `.ccx`
+- [x] 命令行安装脚本：`mypackage/install_ccx.bat`（调用 UnifiedPluginInstallerAgent 安装 `.ccx`）
 
 #### 2c. UI 模式切换 ✅
 - [x] `#select-mode` select 绑定事件，切换 `colorMode`（"rgb" / "mixbox"）
@@ -240,3 +242,12 @@ img.src = url;
 *   **兼容性**：不同 PS/UXP 版本对 `ImageBlob(type:"image/uncompressed")` 的参数容忍度可能不同；遇到构造器异常优先检查入参类型（`Uint8Array`）与像素格式字段。
 *   **内存**：如果以后要做“历史/撤销/多层”，不要无上限缓存整幅 `pixelBuffer` 快照；建议以小步增量或限制层数/分辨率。
 *   **事件**：`<img>` 默认可拖拽，已禁用 `draggable`；若后续遇到触摸/手写笔问题，优先检查 `touch-action:none` 与指针坐标缩放。
+*   **打包**：UDT 打包时若报 icons 缺失，需同时在 `manifest.json` 顶层与 panel entrypoints 内配置 `icons`。
+
+---
+
+## 7. 进度摘要（2026-02-11）
+- 解决“越画越卡 / Clear 无效”的根因：放弃 `<canvas>` 命令式绘制，改为 `ImageBlob + <img>` 位图直出（RGB/Mixbox 均稳定）。
+- 修复 RGB/Mixbox 跨模式不融合：引入 `latent_dirty`，Mixbox 混色前按需同步 latent。
+- 完成打包与安装闭环：补齐 manifest icons、UDT 成功打包 `.ccx`，并提供 `mypackage/install_ccx.bat` 一键命令行安装。
+- 当前默认笔刷不透明度：10%（便于混色，后续再根据手感调整 spacing/flow 策略）。

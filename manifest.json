@@ -2,6 +2,12 @@
   "id": "com.example.mixboxpalette",
   "name": "Mixbox Palette",
   "version": "1.0.0",
+  "icons": [
+    { "width": 23, "height": 23, "path": "assets/icon-23.png" },
+    { "width": 46, "height": 46, "path": "assets/icon-46.png" },
+    { "width": 48, "height": 48, "path": "assets/icon-48.png" },
+    { "width": 96, "height": 96, "path": "assets/icon-96.png" }
+  ],
   "main": "src/index.html",
   "manifestVersion": 5,
   "entrypoints": [
@@ -9,6 +15,12 @@
       "type": "panel",
       "id": "main",
       "label": "Mixbox Palette",
+      "icons": [
+        { "width": 23, "height": 23, "path": "assets/icon-23.png" },
+        { "width": 46, "height": 46, "path": "assets/icon-46.png" },
+        { "width": 48, "height": 48, "path": "assets/icon-48.png" },
+        { "width": 96, "height": 96, "path": "assets/icon-96.png" }
+      ],
       "minimumSize": {
         "width": 200,
         "height": 200
