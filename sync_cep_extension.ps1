@@ -13,6 +13,15 @@ if (!(Test-Path -LiteralPath $source_dir)) {
 $dest_dir = Join-Path $extensions_root $extension_id
 New-Item -ItemType Directory -Path $dest_dir -Force | Out-Null
 
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "lib\\mixbox.js")) {
+  $mixbox_src = Join-Path $PSScriptRoot "lib\\mixbox.js"
+  $mixbox_dest = Join-Path $source_dir "js\\mixbox.js"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $mixbox_dest) -Force | Out-Null
+  Copy-Item -LiteralPath $mixbox_src -Destination $mixbox_dest -Force
+} else {
+  Write-Host "[WARN] mixbox source not found: $(Join-Path $PSScriptRoot 'lib\\mixbox.js')"
+}
+
 Write-Host "Syncing CEP extension files..."
 Write-Host "  source: $source_dir"
 Write-Host "  dest:   $dest_dir"

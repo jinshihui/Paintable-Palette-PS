@@ -26,9 +26,6 @@
                 <Resources>
                     <MainPath>./index.html</MainPath>
                     <ScriptPath>./jsx/photoshop.jsx</ScriptPath>
-                    <CEFCommandLine>
-                        <Parameter>--remote-debugging-port=8088</Parameter>
-                    </CEFCommandLine>
                 </Resources>
                 <Lifecycle>
                     <AutoVisible>true</AutoVisible>

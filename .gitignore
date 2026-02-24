@@ -3,3 +3,4 @@ node_modules/
 dist/
 .uxp/
 package-lock.json
+cep_ext/com.example.mixboxpalette/js/mixbox.js

@@ -7,17 +7,38 @@
   </head>
   <body>
     <div class="container">
-      <div class="row">
-        <button id="btn-get-fg">Get FG</button>
-        <button id="btn-set-red">Set Red</button>
+      <div class="toolbar">
+        <label>Size
+          <input type="range" id="slider-size" min="2" max="80" value="20" />
+        </label>
+        <label>Opacity
+          <input type="range" id="slider-opacity" min="1" max="100" value="10" />
+        </label>
+        <label>Hardness
+          <input type="range" id="slider-hardness" min="0" max="100" value="100" />
+        </label>
+        <select id="select-mode">
+          <option value="rgb">RGB</option>
+          <option value="mixbox">Mixbox</option>
+        </select>
+        <button id="btn-clear">Clear</button>
+        <button id="btn-pick">Pick</button>
       </div>
-      <div class="row">
+
+      <div class="statusbar">
         <div id="fg-swatch" class="swatch"></div>
         <span id="status-text">Ready</span>
       </div>
+
+      <canvas
+        id="palette-canvas"
+        width="300"
+        height="300"
+        class="surface"
+      ></canvas>
     </div>
 
+    <script src="js/mixbox.js"></script>
     <script src="js/main.js"></script>
   </body>
 </html>
-
