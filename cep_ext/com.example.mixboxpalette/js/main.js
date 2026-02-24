@@ -353,9 +353,33 @@ function bind_ui() {
   const clear_el = document.getElementById("btn-clear");
   const pick_el = document.getElementById("btn-pick");
 
-  if (size_el) size_el.addEventListener("input", (e) => (brush_radius = parseInt(e.target.value, 10)));
-  if (opacity_el) opacity_el.addEventListener("input", (e) => (brush_opacity = parseInt(e.target.value, 10) / 100));
-  if (hardness_el) hardness_el.addEventListener("input", (e) => (brush_hardness = parseInt(e.target.value, 10) / 100));
+  function update_value_labels() {
+    const size_val_el = document.getElementById("val-size");
+    const opacity_val_el = document.getElementById("val-opacity");
+    const hardness_val_el = document.getElementById("val-hardness");
+    if (size_val_el) size_val_el.textContent = String(brush_radius);
+    if (opacity_val_el) opacity_val_el.textContent = `${Math.round(brush_opacity * 100)}%`;
+    if (hardness_val_el) hardness_val_el.textContent = `${Math.round(brush_hardness * 100)}%`;
+  }
+
+  if (size_el) {
+    size_el.addEventListener("input", (e) => {
+      brush_radius = parseInt(e.target.value, 10);
+      update_value_labels();
+    });
+  }
+  if (opacity_el) {
+    opacity_el.addEventListener("input", (e) => {
+      brush_opacity = parseInt(e.target.value, 10) / 100;
+      update_value_labels();
+    });
+  }
+  if (hardness_el) {
+    hardness_el.addEventListener("input", (e) => {
+      brush_hardness = parseInt(e.target.value, 10) / 100;
+      update_value_labels();
+    });
+  }
 
   if (mode_el) {
     mode_el.addEventListener("change", (e) => {
@@ -373,6 +397,8 @@ function bind_ui() {
       set_status(pick_mode ? "Pick mode ON (click/drag to pick)" : "Paint mode");
     });
   }
+
+  update_value_labels();
 }
 
 async function init() {

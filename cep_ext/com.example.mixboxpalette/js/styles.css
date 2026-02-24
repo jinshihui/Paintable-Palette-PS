@@ -1,19 +1,21 @@
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
+  background-color: #323232;
+  color: #cccccc;
 }
 
 .container {
-  padding: 8px;
+  padding: 6px;
 }
 
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
 .toolbar label {
@@ -24,13 +26,29 @@ body {
 }
 
 .toolbar input[type="range"] {
-  width: 70px;
+  width: 60px;
 }
 
 .toolbar select,
 .toolbar button {
   padding: 2px 6px;
-  font-size: 12px;
+  font-size: 11px;
+  border: 1px solid #666;
+  background: #444;
+  color: #ddd;
+}
+
+.toolbar button:hover,
+.toolbar select:hover {
+  background: #555;
+}
+
+.value {
+  display: inline-block;
+  min-width: 34px;
+  text-align: right;
+  color: #bbb;
+  font-variant-numeric: tabular-nums;
 }
 
 .statusbar {
@@ -48,7 +66,7 @@ body {
 }
 
 #status-text {
-  color: #666;
+  color: #999;
 }
 
 .surface {
