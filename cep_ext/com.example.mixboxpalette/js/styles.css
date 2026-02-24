@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.container {
+  padding: 10px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #888;
+  background: #000;
+}
+
+#status-text {
+  color: #666;
+}
+
