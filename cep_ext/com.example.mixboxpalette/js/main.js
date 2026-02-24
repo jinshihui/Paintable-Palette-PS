@@ -9,6 +9,23 @@ function clamp_0_255(value) {
   return Math.max(0, Math.min(255, value));
 }
 
+function bytes_to_base64(bytes) {
+  let binary = "";
+  const chunk_size = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk_size) {
+    const chunk = bytes.subarray(i, i + chunk_size);
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binary);
+}
+
+function base64_to_bytes(base64_string) {
+  const binary = atob(base64_string);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 function set_status(message) {
   const el = document.getElementById("status-text");
   if (el) el.textContent = message;
@@ -42,6 +59,7 @@ const BG_R = 232;
 const BG_G = 232;
 const BG_B = 232;
 const LATENT_SIZE = 7;
+const STORAGE_KEY_STATE = "mixboxpalette_state_v1";
 
 let canvas_el;
 let ctx;
@@ -69,6 +87,10 @@ const MIN_RENDER_INTERVAL_MS = 33;
 let last_pick_ms = 0;
 const MIN_PICK_INTERVAL_MS = 80;
 
+let save_timer_id = null;
+let save_scheduled = false;
+const SAVE_DEBOUNCE_MS = 500;
+
 function init_buffers() {
   pixel_buffer = new Uint8ClampedArray(W * H * 4);
   latent_buffer = new Float64Array(W * H * LATENT_SIZE);
@@ -90,6 +112,89 @@ function init_buffers() {
       for (let j = 0; j < LATENT_SIZE; j++) latent_buffer[li + j] = bg_latent[j];
     }
   }
+}
+
+function try_restore_state_from_local_storage() {
+  if (!window.localStorage) return false;
+
+  const raw = window.localStorage.getItem(STORAGE_KEY_STATE);
+  if (!raw) return false;
+
+  let state;
+  try {
+    state = JSON.parse(raw);
+  } catch (err) {
+    console.warn("[mixboxpalette] restore: invalid JSON:", err);
+    return false;
+  }
+
+  if (!state || state.v !== 1 || state.w !== W || state.h !== H) return false;
+  if (typeof state.pixel_b64 !== "string" || typeof state.latent_f32_b64 !== "string") return false;
+
+  try {
+    const pixel_bytes = base64_to_bytes(state.pixel_b64);
+    if (pixel_bytes.length !== W * H * 4) return false;
+    pixel_buffer.set(pixel_bytes);
+
+    const latent_bytes = base64_to_bytes(state.latent_f32_b64);
+    const expected_latent_bytes = W * H * LATENT_SIZE * 4;
+    if (latent_bytes.length !== expected_latent_bytes) return false;
+    const latent_f32 = new Float32Array(latent_bytes.buffer, latent_bytes.byteOffset, W * H * LATENT_SIZE);
+    for (let i = 0; i < latent_f32.length; i++) latent_buffer[i] = latent_f32[i];
+
+    if (state.settings) {
+      if (typeof state.settings.brush_radius === "number") brush_radius = state.settings.brush_radius;
+      if (typeof state.settings.brush_opacity === "number") brush_opacity = state.settings.brush_opacity;
+      if (typeof state.settings.brush_hardness === "number") brush_hardness = state.settings.brush_hardness;
+      if (state.settings.color_mode === "rgb" || state.settings.color_mode === "mixbox") color_mode = state.settings.color_mode;
+    }
+
+    return true;
+  } catch (err) {
+    console.warn("[mixboxpalette] restore failed:", err);
+    return false;
+  }
+}
+
+function save_state_to_local_storage() {
+  if (!window.localStorage) return;
+  if (!pixel_buffer || !latent_buffer) return;
+
+  const latent_f32 = new Float32Array(latent_buffer.length);
+  for (let i = 0; i < latent_buffer.length; i++) latent_f32[i] = latent_buffer[i];
+
+  const state = {
+    v: 1,
+    w: W,
+    h: H,
+    saved_at_ms: Date.now(),
+    pixel_b64: bytes_to_base64(new Uint8Array(pixel_buffer.buffer)),
+    latent_f32_b64: bytes_to_base64(new Uint8Array(latent_f32.buffer)),
+    settings: {
+      brush_radius,
+      brush_opacity,
+      brush_hardness,
+      color_mode,
+    },
+  };
+
+  try {
+    window.localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(state));
+  } catch (err) {
+    console.warn("[mixboxpalette] save failed:", err);
+  }
+}
+
+function schedule_save() {
+  save_scheduled = true;
+  if (save_timer_id !== null) return;
+
+  save_timer_id = window.setTimeout(() => {
+    save_timer_id = null;
+    if (!save_scheduled) return;
+    save_scheduled = false;
+    save_state_to_local_storage();
+  }, SAVE_DEBOUNCE_MS);
 }
 
 function schedule_render() {
@@ -251,6 +356,7 @@ function draw_stamp(cx, cy) {
     update_pixel_buffer_rgb(cx, cy, brush_radius, brush_color);
   }
   schedule_render();
+  schedule_save();
 }
 
 function draw_stroke_to(x, y) {
@@ -343,6 +449,7 @@ function do_clear() {
   init_buffers();
   schedule_render();
   set_status(`Cleared (${color_mode})`);
+  schedule_save();
 }
 
 function bind_ui() {
@@ -366,18 +473,21 @@ function bind_ui() {
     size_el.addEventListener("input", (e) => {
       brush_radius = parseInt(e.target.value, 10);
       update_value_labels();
+      schedule_save();
     });
   }
   if (opacity_el) {
     opacity_el.addEventListener("input", (e) => {
       brush_opacity = parseInt(e.target.value, 10) / 100;
       update_value_labels();
+      schedule_save();
     });
   }
   if (hardness_el) {
     hardness_el.addEventListener("input", (e) => {
       brush_hardness = parseInt(e.target.value, 10) / 100;
       update_value_labels();
+      schedule_save();
     });
   }
 
@@ -385,6 +495,7 @@ function bind_ui() {
     mode_el.addEventListener("change", (e) => {
       color_mode = e.target.value;
       set_status(`Mode: ${color_mode}`);
+      schedule_save();
     });
   }
 
@@ -415,10 +526,20 @@ async function init() {
   }
   image_data = ctx.createImageData(W, H);
   init_buffers();
+  const restored = try_restore_state_from_local_storage();
   image_data.data.set(pixel_buffer);
   ctx.putImageData(image_data, 0, 0);
 
   bind_ui();
+
+  const size_el = document.getElementById("slider-size");
+  const opacity_el = document.getElementById("slider-opacity");
+  const hardness_el = document.getElementById("slider-hardness");
+  const mode_el = document.getElementById("select-mode");
+  if (size_el) size_el.value = String(brush_radius);
+  if (opacity_el) opacity_el.value = String(Math.round(brush_opacity * 100));
+  if (hardness_el) hardness_el.value = String(Math.round(brush_hardness * 100));
+  if (mode_el) mode_el.value = color_mode;
 
   canvas_el.addEventListener("pointerdown", on_pointer_down);
   canvas_el.addEventListener("pointermove", on_pointer_move);
@@ -426,6 +547,7 @@ async function init() {
   canvas_el.addEventListener("pointerleave", on_pointer_up);
 
   console.log("[mixboxpalette] init ok. mixbox loaded:", !!(window.mixbox && window.mixbox.lerp));
+  if (restored) console.log("[mixboxpalette] state restored from localStorage");
 
   try {
     const fg = await get_foreground_rgb();
@@ -435,6 +557,8 @@ async function init() {
   } catch (err) {
     set_status(`Ready (${color_mode}). WARN(read fg): ${err && err.message ? err.message : String(err)}`);
   }
+
+  window.addEventListener("beforeunload", () => save_state_to_local_storage());
 }
 
 document.addEventListener("DOMContentLoaded", init);

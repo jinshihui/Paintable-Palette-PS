@@ -38,6 +38,14 @@
                             <Width>320</Width>
                             <Height>420</Height>
                         </Size>
+                        <MinSize>
+                            <Width>160</Width>
+                            <Height>200</Height>
+                        </MinSize>
+                        <MaxSize>
+                            <Width>1200</Width>
+                            <Height>1200</Height>
+                        </MaxSize>
                     </Geometry>
                 </UI>
             </DispatchInfo>
