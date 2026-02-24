@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Mixbox Palette (CEP)</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <label>Size
+                <input type="range" id="slider-size" min="2" max="80" value="20">
+            </label>
+            <label>Opacity
+                <input type="range" id="slider-opacity" min="1" max="100" value="10">
+            </label>
+            <label>Hardness
+                <input type="range" id="slider-hardness" min="0" max="100" value="100">
+            </label>
+            <select id="select-mode">
+                <option value="rgb">RGB</option>
+                <option value="mixbox">Mixbox</option>
+            </select>
+            <button id="btn-clear">Clear</button>
+            <button id="btn-pick">Pick</button>
+        </div>
+        <div class="color-preview">
+            <div id="fg-swatch"
+                style="display:inline-block; width:20px; height:20px; min-width:20px; min-height:20px; border:1px solid #888; background-color:#000000;">
+                &nbsp;</div>
+            <span id="status-text">Ready</span>
+        </div>
+        <canvas id="palette-surface" width="300" height="300"
+            style="display:block; border:1px solid #555; cursor:crosshair; background:#e8e8e8; touch-action:none; user-select:none;"></canvas>
+    </div>
+    <script src="../lib/mixbox.js"></script>
+    <script src="./main.js"></script>
+</body>
+
+</html>
+

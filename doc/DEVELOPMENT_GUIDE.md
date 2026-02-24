@@ -251,3 +251,64 @@ img.src = url;
 - 修复 RGB/Mixbox 跨模式不融合：引入 `latent_dirty`，Mixbox 混色前按需同步 latent。
 - 完成打包与安装闭环：补齐 manifest icons、UDT 成功打包 `.ccx`，并提供 `mypackage/install_ccx.bat` 一键命令行安装。
 - 当前默认笔刷不透明度：10%（便于混色，后续再根据手感调整 spacing/flow 策略）。
+
+---
+
+## 8. 迁移到 CEP（Legacy Extension）架构
+
+> 背景：当前项目为 **UXP Panel**。你提出要“转移到 CEP 架构”，通常指 **CSXS/CEP HTML Extension + ExtendScript**（Photoshop 里常在 `Window > Extensions (Legacy)` 下出现）。
+
+### 8.1 迁移目标（功能不变）
+- 面板内“调色盘画布”可涂抹（半透明笔刷）。
+- 笔刷颜色读取 Photoshop 当前前景色。
+- Alt 按住吸色（或 Pick 按钮切换吸色模式），并写回 Photoshop 前景色。
+- 混色模式可在 **RGB 线性混合** 与 **Mixbox** 之间切换。
+- Clear 清空、Size/Opacity 控件保持可用。
+
+### 8.2 CEP vs UXP：需要替换的关键点（调研结论）
+- **宿主桥接**：
+  - UXP：`require("photoshop")` + `executeAsModal()` 读写 `app.foregroundColor`
+  - CEP：在面板 JS 里通过 `window.__adobe_cep__.evalScript(...)` 调 ExtendScript 读写 `app.foregroundColor`
+- **显示层**：
+  - UXP：`ImageBlob(type:"image/uncompressed") + <img>`（避免 UXP canvas 限制）
+  - CEP：可直接用标准浏览器 `canvas`（本仓库已提供 CEP 版本用 `putImageData` 渲染）
+- **调试方式**：
+  - UXP：UXP Developer Tool
+  - CEP：注册表开启 `PlayerDebugMode` + 通过 `Window > Extensions (Legacy)` 加载；DevTools 走 CEF remote debugging
+
+### 8.3 本仓库当前的“最小 CEP 落地”（已加入的脚手架）
+- CEP Manifest：`CSXS/manifest.xml`（入口指向 `cep/index.html`）
+- CEP 面板实现：`cep/index.html` + `cep/main.js` + `cep/styles.css`
+  - 画布渲染：`pixelBuffer(RGB)` → `canvas.putImageData`
+  - PS 颜色桥接：`evalScript` 读/写 `app.foregroundColor`
+
+### 8.4 建议的迁移步骤（保功能、低风险）
+1) **双轨并行**：保留现有 UXP（便于随时对照行为），CEP 先做到可用闭环。
+2) **先对齐桥接层**：确保 CEP 下 `get/set foregroundColor` 稳定（这是“功能不变”的关键）。
+3) **再对齐渲染与交互**：Brush spacing、Opacity、Pick 行为与 UXP 一致。
+4) **最后做打包发布**：确定 CEP 的分发方式（内部：debug mode 目录分发；公开：ZXP 签名）。
+
+### 8.5 你需要配合我调试的具体步骤（Windows）
+
+#### Step A：启用 CEP 开发模式并创建开发链接（一次性）
+1) 关闭 Photoshop。
+2) 以 PowerShell 运行（会写入注册表 + 创建 junction 到 CEP 扩展目录）：
+   - `powershell -ExecutionPolicy Bypass -File debug\\cep_dev_setup.ps1`
+3) 重启 Photoshop。
+
+#### Step B：在 Photoshop 里打开面板
+1) 菜单：`Window > Extensions (Legacy) > Mixbox Palette (CEP)`
+2) 在面板里随便涂几笔，确认：
+   - RGB/Mixbox 切换可用
+   - Alt 吸色写回前景色（或点 Pick）
+
+#### Step C：打开 DevTools（给我报错/日志用）
+1) 确保 `CSXS/manifest.xml` 里有 `--remote-debugging-port=9222`
+2) 用 Edge/Chrome 打开：`http://127.0.0.1:9222`
+3) 找到对应扩展页面并 Inspect，复制 Console 报错发我（或截图）
+
+### 8.6 发布（CEP 典型路径，需你确认的决策点）
+- **内部/自用分发（最快）**：让用户启用 `PlayerDebugMode`，把扩展目录（或压缩包解压）放到 `%APPDATA%\\Adobe\\CEP\\extensions\\...`。
+- **签名分发（更正规）**：使用 Adobe `ZXPSignCmd` 生成 `.zxp`（需要证书 `.p12`）；安装依赖目标机器的 CEP 安装器/策略。
+
+> 你需要告诉我：你期望的发布形态是“内部自用”还是“签名 ZXP”，以及目标 Photoshop 版本范围（例如 PS 2022/2023/2024/2025）。

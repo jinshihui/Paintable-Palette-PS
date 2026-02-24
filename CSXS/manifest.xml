@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ExtensionManifest
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  Version="7.0"
+  ExtensionBundleId="com.example.mixboxpalette"
+  ExtensionBundleName="Mixbox Palette"
+  ExtensionBundleVersion="1.0.0">
+  <ExtensionList>
+    <Extension Id="com.example.mixboxpalette.cep" Version="1.0.0" />
+  </ExtensionList>
+
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PHXS" Version="[23.3,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+
+  <DispatchInfoList>
+    <Extension Id="com.example.mixboxpalette.cep">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./cep/index.html</MainPath>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Mixbox Palette (CEP)</Menu>
+          <Geometry>
+            <Size>
+              <Width>300</Width>
+              <Height>400</Height>
+            </Size>
+            <MinSize>
+              <Width>200</Width>
+              <Height>200</Height>
+            </MinSize>
+            <MaxSize>
+              <Width>1200</Width>
+              <Height>1200</Height>
+            </MaxSize>
+          </Geometry>
+        </UI>
+        <CEFCommandLine>
+          <Parameter>--remote-debugging-port=9222</Parameter>
+          <Parameter>--allow-file-access-from-files</Parameter>
+        </CEFCommandLine>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>
+
