@@ -1,4 +1,4 @@
-# Mixbox Palette（Photoshop 调色盘插件）
+# Paintable Palette (PS)（Photoshop 调色盘插件）
 
 在 Photoshop 内提供一个“可涂抹的调色盘面板”：用当前前景色在调色盘上混色、并可吸色回写到 Photoshop 前景色。支持 **RGB 线性混合** 与 **Mixbox 自然颜料混色** 两种模式。
 
