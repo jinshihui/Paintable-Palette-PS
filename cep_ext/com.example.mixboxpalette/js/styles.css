@@ -4,10 +4,13 @@ body {
   font-size: 11px;
   background-color: #323232;
   color: #cccccc;
+  min-width: 0;
+  min-height: 0;
 }
 
 .container {
   padding: 6px;
+  min-width: 0;
 }
 
 .toolbar {
@@ -71,11 +74,25 @@ body {
 
 .surface {
   display: block;
-  width: 300px;
-  height: 300px;
-  border: 1px solid #555;
-  background: #e8e8e8;
   cursor: crosshair;
   touch-action: none;
   user-select: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.surface-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  border: 1px solid #555;
+  background: #e8e8e8;
+}
+
+.surface-wrap::before {
+  content: "";
+  display: block;
+  padding-top: 100%;
 }
