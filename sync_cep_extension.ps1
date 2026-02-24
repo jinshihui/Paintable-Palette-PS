@@ -1,9 +1,7 @@
 param(
   [string]$source_dir = (Join-Path $PSScriptRoot "cep_ext\\com.example.mixboxpalette"),
   [string]$extensions_root = "C:\\Users\\jinxx\\AppData\\Roaming\\Adobe\\CEP\\extensions",
-  [string]$extension_id = "com.example.mixboxpalette",
-  [switch]$enable_player_debug_mode,
-  [int]$csxs_major = 11
+  [string]$extension_id = "com.example.mixboxpalette"
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,13 +12,6 @@ if (!(Test-Path -LiteralPath $source_dir)) {
 
 $dest_dir = Join-Path $extensions_root $extension_id
 New-Item -ItemType Directory -Path $dest_dir -Force | Out-Null
-
-if ($enable_player_debug_mode) {
-  $csxs_key_path = "HKCU:\\Software\\Adobe\\CSXS.$csxs_major"
-  New-Item -Path $csxs_key_path -Force | Out-Null
-  New-ItemProperty -Path $csxs_key_path -Name "PlayerDebugMode" -PropertyType String -Value "1" -Force | Out-Null
-  Write-Host "[OK] PlayerDebugMode enabled at $csxs_key_path"
-}
 
 Write-Host "Syncing CEP extension files..."
 Write-Host "  source: $source_dir"
