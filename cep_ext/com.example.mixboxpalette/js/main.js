@@ -5,6 +5,28 @@ function eval_script(script_text) {
   return new Promise((resolve) => window.__adobe_cep__.evalScript(script_text, resolve));
 }
 
+console.log("[mixboxpalette] main.js loaded");
+
+let mixbox_load_promise = null;
+function ensure_mixbox_loaded() {
+  if (window.mixbox && typeof window.mixbox.rgbToLatent === "function") return Promise.resolve(true);
+  if (mixbox_load_promise) return mixbox_load_promise;
+
+  mixbox_load_promise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "js/mixbox.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error("Failed to load js/mixbox.js"));
+    document.head.appendChild(script);
+  }).catch((err) => {
+    mixbox_load_promise = null;
+    throw err;
+  });
+
+  return mixbox_load_promise;
+}
+
 function clamp_0_255(value) {
   return Math.max(0, Math.min(255, value));
 }
@@ -482,6 +504,16 @@ async function on_pointer_down(e) {
     return;
   }
 
+  if (color_mode === "mixbox" && (!window.mixbox || typeof window.mixbox.rgbToLatent !== "function")) {
+    set_status("Loading Mixbox...");
+    try {
+      await ensure_mixbox_loaded();
+      set_status("Mixbox loaded");
+    } catch (err) {
+      set_status(`ERROR(load mixbox): ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+
   try {
     const fg = await get_foreground_rgb();
     brush_color = fg;
@@ -500,6 +532,14 @@ async function on_pointer_move(e) {
   if (is_pick_mode(e)) {
     await do_pick_color(pos.x, pos.y);
   } else {
+    if (color_mode === "mixbox" && (!window.mixbox || typeof window.mixbox.rgbToLatent !== "function")) {
+      try {
+        await ensure_mixbox_loaded();
+      } catch (err) {
+        set_status(`ERROR(load mixbox): ${err && err.message ? err.message : String(err)}`);
+        return;
+      }
+    }
     draw_stroke_to(pos.x, pos.y);
   }
 }
@@ -520,46 +560,9 @@ function do_clear() {
 }
 
 function bind_ui() {
-  const size_el = document.getElementById("slider-size");
-  const opacity_el = document.getElementById("slider-opacity");
-  const hardness_el = document.getElementById("slider-hardness");
   const mode_el = document.getElementById("select-mode");
   const clear_el = document.getElementById("btn-clear");
   const pick_el = document.getElementById("btn-pick");
-
-  function update_value_labels() {
-    const size_val_el = document.getElementById("val-size");
-    const opacity_val_el = document.getElementById("val-opacity");
-    const hardness_val_el = document.getElementById("val-hardness");
-    if (size_val_el) size_val_el.textContent = String(brush_radius);
-    if (opacity_val_el) opacity_val_el.textContent = `${Math.round(brush_opacity * 100)}%`;
-    if (hardness_val_el) hardness_val_el.textContent = `${Math.round(brush_hardness * 100)}%`;
-  }
-
-  if (size_el) {
-    size_el.addEventListener("input", (e) => {
-      brush_radius = parseInt(e.target.value, 10);
-      update_value_labels();
-      mark_unsaved_changes();
-      schedule_save();
-    });
-  }
-  if (opacity_el) {
-    opacity_el.addEventListener("input", (e) => {
-      brush_opacity = parseInt(e.target.value, 10) / 100;
-      update_value_labels();
-      mark_unsaved_changes();
-      schedule_save();
-    });
-  }
-  if (hardness_el) {
-    hardness_el.addEventListener("input", (e) => {
-      brush_hardness = parseInt(e.target.value, 10) / 100;
-      update_value_labels();
-      mark_unsaved_changes();
-      schedule_save();
-    });
-  }
 
   if (mode_el) {
     mode_el.addEventListener("change", (e) => {
@@ -579,8 +582,6 @@ function bind_ui() {
       set_status(pick_mode ? "Pick mode ON (click/drag to pick)" : "Paint mode");
     });
   }
-
-  update_value_labels();
 }
 
 async function init() {
@@ -625,13 +626,7 @@ async function init() {
 
   bind_ui();
 
-  const size_el = document.getElementById("slider-size");
-  const opacity_el = document.getElementById("slider-opacity");
-  const hardness_el = document.getElementById("slider-hardness");
   const mode_el = document.getElementById("select-mode");
-  if (size_el) size_el.value = String(brush_radius);
-  if (opacity_el) opacity_el.value = String(Math.round(brush_opacity * 100));
-  if (hardness_el) hardness_el.value = String(Math.round(brush_hardness * 100));
   if (mode_el) mode_el.value = color_mode;
 
   canvas_el.addEventListener("pointerdown", on_pointer_down);
