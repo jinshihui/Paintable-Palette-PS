@@ -9,16 +9,6 @@ function clamp_0_255(value) {
   return Math.max(0, Math.min(255, value));
 }
 
-function bytes_to_base64(bytes) {
-  let binary = "";
-  const chunk_size = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk_size) {
-    const chunk = bytes.subarray(i, i + chunk_size);
-    binary += String.fromCharCode.apply(null, chunk);
-  }
-  return btoa(binary);
-}
-
 function base64_to_bytes(base64_string) {
   const binary = atob(base64_string);
   const bytes = new Uint8Array(binary.length);
@@ -59,7 +49,11 @@ const BG_R = 232;
 const BG_G = 232;
 const BG_B = 232;
 const LATENT_SIZE = 7;
-const STORAGE_KEY_STATE = "mixboxpalette_state_v1";
+const DB_NAME = "mixboxpalette";
+const DB_VERSION = 1;
+const DB_STORE = "state";
+const DB_STATE_KEY = "main";
+const LEGACY_LOCAL_STORAGE_KEYS = ["mixboxpalette_state_v2", "mixboxpalette_state_v1"];
 
 let canvas_el;
 let ctx;
@@ -89,16 +83,16 @@ const MIN_PICK_INTERVAL_MS = 80;
 
 let save_timer_id = null;
 let save_scheduled = false;
-const SAVE_DEBOUNCE_MS = 500;
+const SAVE_DEBOUNCE_MS = 250;
+let has_unsaved_changes = false;
+
+let db_promise = null;
 
 function init_buffers() {
   pixel_buffer = new Uint8ClampedArray(W * H * 4);
-  latent_buffer = new Float64Array(W * H * LATENT_SIZE);
+  latent_buffer = new Float32Array(W * H * LATENT_SIZE);
   latent_dirty = new Uint8Array(W * H);
   latent_tmp = new Array(LATENT_SIZE);
-
-  const can_init_latent = window.mixbox && typeof window.mixbox.rgbToLatent === "function";
-  const bg_latent = can_init_latent ? window.mixbox.rgbToLatent([BG_R, BG_G, BG_B]) : null;
 
   for (let i = 0; i < W * H; i++) {
     const idx = i * 4;
@@ -106,41 +100,109 @@ function init_buffers() {
     pixel_buffer[idx + 1] = BG_G;
     pixel_buffer[idx + 2] = BG_B;
     pixel_buffer[idx + 3] = 255;
-
-    if (bg_latent) {
-      const li = i * LATENT_SIZE;
-      for (let j = 0; j < LATENT_SIZE; j++) latent_buffer[li + j] = bg_latent[j];
-    }
   }
+
+  // Mixbox 首次用到某像素时再从 pixel_buffer 同步 latent，避免初始化成本。
+  latent_dirty.fill(1);
 }
 
-function try_restore_state_from_local_storage() {
-  if (!window.localStorage) return false;
+function open_db() {
+  if (db_promise) return db_promise;
 
-  const raw = window.localStorage.getItem(STORAGE_KEY_STATE);
-  if (!raw) return false;
+  db_promise = new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("indexedDB not available"));
+      return;
+    }
+
+    const req = window.indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("indexedDB open failed"));
+  });
+
+  return db_promise;
+}
+
+async function idb_get_state() {
+  const db = await open_db();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readonly");
+    const store = tx.objectStore(DB_STORE);
+    const req = store.get(DB_STATE_KEY);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error || new Error("indexedDB get failed"));
+  });
+}
+
+async function idb_put_state(record) {
+  const db = await open_db();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, "readwrite");
+    const store = tx.objectStore(DB_STORE);
+    const req = store.put(record);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error || new Error("indexedDB put failed"));
+  });
+}
+
+function restore_state_from_record(record) {
+  if (!record || record.v !== 2 || record.w !== W || record.h !== H) return false;
+
+  let bytes = null;
+  if (record.pixel_u8 instanceof Uint8Array) {
+    bytes = record.pixel_u8;
+  } else if (record.pixel_ab instanceof ArrayBuffer) {
+    bytes = new Uint8Array(record.pixel_ab);
+  }
+  if (!bytes) return false;
+
+  if (bytes.length !== W * H * 4) return false;
+  pixel_buffer.set(bytes);
+  latent_dirty.fill(1);
+
+  const s = record.settings;
+  if (s) {
+    if (typeof s.brush_radius === "number") brush_radius = s.brush_radius;
+    if (typeof s.brush_opacity === "number") brush_opacity = s.brush_opacity;
+    if (typeof s.brush_hardness === "number") brush_hardness = s.brush_hardness;
+    if (s.color_mode === "rgb" || s.color_mode === "mixbox") color_mode = s.color_mode;
+  }
+
+  return true;
+}
+
+function try_migrate_legacy_local_storage_state() {
+  if (!window.localStorage) return null;
+
+  let raw = null;
+  for (const key of LEGACY_LOCAL_STORAGE_KEYS) {
+    raw = window.localStorage.getItem(key);
+    if (raw) break;
+  }
+  if (!raw) return null;
 
   let state;
   try {
     state = JSON.parse(raw);
   } catch (err) {
-    console.warn("[mixboxpalette] restore: invalid JSON:", err);
-    return false;
+    console.warn("[mixboxpalette] legacy restore: invalid JSON:", err);
+    return null;
   }
 
-  if (!state || state.v !== 1 || state.w !== W || state.h !== H) return false;
-  if (typeof state.pixel_b64 !== "string" || typeof state.latent_f32_b64 !== "string") return false;
+  if (!state || state.v !== 1 || state.w !== W || state.h !== H) return null;
+  if (typeof state.pixel_b64 !== "string") return null;
 
   try {
     const pixel_bytes = base64_to_bytes(state.pixel_b64);
-    if (pixel_bytes.length !== W * H * 4) return false;
+    if (pixel_bytes.length !== W * H * 4) return null;
     pixel_buffer.set(pixel_bytes);
-
-    const latent_bytes = base64_to_bytes(state.latent_f32_b64);
-    const expected_latent_bytes = W * H * LATENT_SIZE * 4;
-    if (latent_bytes.length !== expected_latent_bytes) return false;
-    const latent_f32 = new Float32Array(latent_bytes.buffer, latent_bytes.byteOffset, W * H * LATENT_SIZE);
-    for (let i = 0; i < latent_f32.length; i++) latent_buffer[i] = latent_f32[i];
+    latent_dirty.fill(1);
 
     if (state.settings) {
       if (typeof state.settings.brush_radius === "number") brush_radius = state.settings.brush_radius;
@@ -149,27 +211,26 @@ function try_restore_state_from_local_storage() {
       if (state.settings.color_mode === "rgb" || state.settings.color_mode === "mixbox") color_mode = state.settings.color_mode;
     }
 
-    return true;
+    return { migrated: true };
   } catch (err) {
-    console.warn("[mixboxpalette] restore failed:", err);
-    return false;
+    console.warn("[mixboxpalette] legacy restore failed:", err);
+    return null;
   }
 }
 
-function save_state_to_local_storage() {
-  if (!window.localStorage) return;
-  if (!pixel_buffer || !latent_buffer) return;
+function save_state_to_idb() {
+  if (!pixel_buffer) return;
 
-  const latent_f32 = new Float32Array(latent_buffer.length);
-  for (let i = 0; i < latent_buffer.length; i++) latent_f32[i] = latent_buffer[i];
+  const pixel_u8 = new Uint8Array(pixel_buffer.buffer, pixel_buffer.byteOffset, pixel_buffer.byteLength);
+  const pixel_copy = new Uint8Array(pixel_u8);
 
-  const state = {
-    v: 1,
+  const record = {
+    id: DB_STATE_KEY,
+    v: 2,
     w: W,
     h: H,
     saved_at_ms: Date.now(),
-    pixel_b64: bytes_to_base64(new Uint8Array(pixel_buffer.buffer)),
-    latent_f32_b64: bytes_to_base64(new Uint8Array(latent_f32.buffer)),
+    pixel_u8: pixel_copy,
     settings: {
       brush_radius,
       brush_opacity,
@@ -178,11 +239,15 @@ function save_state_to_local_storage() {
     },
   };
 
-  try {
-    window.localStorage.setItem(STORAGE_KEY_STATE, JSON.stringify(state));
-  } catch (err) {
-    console.warn("[mixboxpalette] save failed:", err);
-  }
+  idb_put_state(record)
+    .then(() => {
+      has_unsaved_changes = false;
+    })
+    .catch((err) => console.warn("[mixboxpalette] idb save failed:", err));
+}
+
+function mark_unsaved_changes() {
+  has_unsaved_changes = true;
 }
 
 function schedule_save() {
@@ -193,7 +258,7 @@ function schedule_save() {
     save_timer_id = null;
     if (!save_scheduled) return;
     save_scheduled = false;
-    save_state_to_local_storage();
+    save_state_to_idb();
   }, SAVE_DEBOUNCE_MS);
 }
 
@@ -356,7 +421,7 @@ function draw_stamp(cx, cy) {
     update_pixel_buffer_rgb(cx, cy, brush_radius, brush_color);
   }
   schedule_render();
-  schedule_save();
+  mark_unsaved_changes();
 }
 
 function draw_stroke_to(x, y) {
@@ -443,13 +508,15 @@ function on_pointer_up() {
   is_drawing = false;
   last_x = null;
   last_y = null;
+  if (has_unsaved_changes) save_state_to_idb();
 }
 
 function do_clear() {
   init_buffers();
   schedule_render();
   set_status(`Cleared (${color_mode})`);
-  schedule_save();
+  mark_unsaved_changes();
+  save_state_to_idb();
 }
 
 function bind_ui() {
@@ -473,6 +540,7 @@ function bind_ui() {
     size_el.addEventListener("input", (e) => {
       brush_radius = parseInt(e.target.value, 10);
       update_value_labels();
+      mark_unsaved_changes();
       schedule_save();
     });
   }
@@ -480,6 +548,7 @@ function bind_ui() {
     opacity_el.addEventListener("input", (e) => {
       brush_opacity = parseInt(e.target.value, 10) / 100;
       update_value_labels();
+      mark_unsaved_changes();
       schedule_save();
     });
   }
@@ -487,6 +556,7 @@ function bind_ui() {
     hardness_el.addEventListener("input", (e) => {
       brush_hardness = parseInt(e.target.value, 10) / 100;
       update_value_labels();
+      mark_unsaved_changes();
       schedule_save();
     });
   }
@@ -495,6 +565,7 @@ function bind_ui() {
     mode_el.addEventListener("change", (e) => {
       color_mode = e.target.value;
       set_status(`Mode: ${color_mode}`);
+      mark_unsaved_changes();
       schedule_save();
     });
   }
@@ -513,6 +584,7 @@ function bind_ui() {
 }
 
 async function init() {
+  const t0 = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
   canvas_el = document.getElementById("palette-canvas");
   if (!canvas_el) {
     set_status("ERROR: canvas not found");
@@ -526,7 +598,28 @@ async function init() {
   }
   image_data = ctx.createImageData(W, H);
   init_buffers();
-  const restored = try_restore_state_from_local_storage();
+  let restored = false;
+  let migrated = false;
+  try {
+    const record = await idb_get_state();
+    restored = restore_state_from_record(record);
+  } catch (err) {
+    console.warn("[mixboxpalette] idb restore failed:", err);
+  }
+
+  if (!restored) {
+    const legacy = try_migrate_legacy_local_storage_state();
+    if (legacy) {
+      migrated = true;
+      restored = true;
+      mark_unsaved_changes();
+      save_state_to_idb();
+      if (window.localStorage) {
+        for (const key of LEGACY_LOCAL_STORAGE_KEYS) window.localStorage.removeItem(key);
+      }
+    }
+  }
+
   image_data.data.set(pixel_buffer);
   ctx.putImageData(image_data, 0, 0);
 
@@ -547,7 +640,8 @@ async function init() {
   canvas_el.addEventListener("pointerleave", on_pointer_up);
 
   console.log("[mixboxpalette] init ok. mixbox loaded:", !!(window.mixbox && window.mixbox.lerp));
-  if (restored) console.log("[mixboxpalette] state restored from localStorage");
+  if (restored) console.log("[mixboxpalette] state restored from indexedDB");
+  if (migrated) console.log("[mixboxpalette] legacy localStorage migrated to indexedDB");
 
   try {
     const fg = await get_foreground_rgb();
@@ -558,7 +652,8 @@ async function init() {
     set_status(`Ready (${color_mode}). WARN(read fg): ${err && err.message ? err.message : String(err)}`);
   }
 
-  window.addEventListener("beforeunload", () => save_state_to_local_storage());
+  const t1 = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+  console.log("[mixboxpalette] init time ms:", Math.round(t1 - t0));
 }
 
 document.addEventListener("DOMContentLoaded", init);
