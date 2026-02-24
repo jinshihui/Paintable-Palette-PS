@@ -21,17 +21,6 @@ body {
   margin-bottom: 4px;
 }
 
-.toolbar label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.toolbar input[type="range"] {
-  width: 60px;
-}
-
 .toolbar select,
 .toolbar button {
   padding: 2px 6px;
@@ -44,14 +33,6 @@ body {
 .toolbar button:hover,
 .toolbar select:hover {
   background: #555;
-}
-
-.value {
-  display: inline-block;
-  min-width: 34px;
-  text-align: right;
-  color: #bbb;
-  font-variant-numeric: tabular-nums;
 }
 
 .statusbar {

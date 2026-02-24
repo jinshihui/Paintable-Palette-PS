@@ -19,6 +19,12 @@
 *   需要自然色彩混合（如油画、水彩风格）的绘图辅助。
 *   不喜欢 Photoshop 默认色板或取色器的艺术家。
 
+### 1.4 本仓库包含的插件版本
+本仓库目前同时包含两套实现：
+
+- **UXP 版（推荐/现代）**：根目录 `manifest.json` + `src/`（本文件前半部分主要描述的就是 UXP 版）。
+- **CEP 版（Legacy Extension）**：`cep_ext/com.example.mixboxpalette/`（用于研究/兼容旧扩展体系）。
+
 ---
 
 ## 2. 架构设计
@@ -251,6 +257,59 @@ img.src = url;
 - 修复 RGB/Mixbox 跨模式不融合：引入 `latent_dirty`，Mixbox 混色前按需同步 latent。
 - 完成打包与安装闭环：补齐 manifest icons、UDT 成功打包 `.ccx`，并提供 `mypackage/install_ccx.bat` 一键命令行安装。
 - 当前默认笔刷不透明度：10%（便于混色，后续再根据手感调整 spacing/flow 策略）。
+
+---
+
+# CEP 版开发/分发指南（Mixbox Palette (CEP)）
+> 说明：CEP 在 Photoshop 25.x 属于 Legacy Extension。实际表现（尤其是与选项卡组切换相关）由宿主控制，扩展侧无法完全避免重载。
+
+## 1) 目录结构
+- CEP 扩展根目录：`cep_ext/com.example.mixboxpalette/`
+  - `CSXS/manifest.xml`：CEP 清单
+  - `index.html`：面板页面
+  - `js/main.js`：面板逻辑（RGB+Mixbox 绘制、吸色、状态持久化）
+  - `jsx/photoshop.jsx`：ExtendScript 桥接（读/写 PS 前景色）
+  - `.debug`：DevTools 端口配置（仅用于开发调试）
+
+## 2) 开发态安装（Windows）
+1. 开启 CEP 调试模式（未签名扩展需要）：
+   - 注册表：`HKCU\Software\Adobe\CSXS.11` 下 `PlayerDebugMode` 设为字符串 `1`
+2. 扩展目录（当前用户）：
+   - `%APPDATA%\Adobe\CEP\extensions\com.example.mixboxpalette\`
+3. 同步脚本（推荐，避免手动复制）：
+   - `powershell -ExecutionPolicy Bypass -File .\sync_cep_extension.ps1`
+   - 该脚本会把 `lib/mixbox.js` 复制到 `cep_ext/.../js/mixbox.js`，再同步到扩展目录。
+4. 重启 Photoshop 后在菜单打开：
+   - `窗口 > 扩展(旧版) > Mixbox Palette (CEP)`
+
+## 3) DevTools 调试
+1. 确保扩展根目录存在 `.debug` 文件（本仓库已提供）。
+2. 重启 Photoshop 并打开面板后，访问：
+   - `http://127.0.0.1:8088`
+3. 在列表中选择对应面板页面进入 DevTools。
+
+> 已知现象：当面板与其它窗口在同一个选项卡组切换时，Photoshop 可能会销毁并重建 CEP 面板（DevTools 连接也会断开，需要重新进入 8088）。
+
+## 4) 状态持久化（避免切换 tab 清空）
+CEP 版已实现画布与参数的自动持久化：
+- 存储介质：IndexedDB
+- 内容：`pixelBuffer(RGBA)` + 画笔参数与 `color_mode`
+- Mixbox latent：不持久化；恢复后对像素标脏，后续 Mixbox 绘制时按需从像素同步 latent。
+
+## 5) 打包分发（ZIP）
+本仓库提供一个最小“可分发包”脚本，会生成一个包含完整扩展文件夹的 zip：
+- `powershell -ExecutionPolicy Bypass -File .\package_cep_extension.ps1`
+
+默认行为：
+- 自动把 `lib/mixbox.js` 放入包内的 `js/mixbox.js`
+- 默认不包含 `.debug`（减少对外分发暴露调试端口）
+
+如需把 `.debug` 一并打包（内部调试分发）：
+- `powershell -ExecutionPolicy Bypass -File .\package_cep_extension.ps1 -include_debug`
+
+安装方式：把 zip 解压得到的 `com.example.mixboxpalette` 文件夹放到：
+- `%APPDATA%\Adobe\CEP\extensions\`
+并确保 `PlayerDebugMode=1`，然后重启 Photoshop。
 
 ---
 
