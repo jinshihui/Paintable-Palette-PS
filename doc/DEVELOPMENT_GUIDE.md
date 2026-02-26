@@ -301,6 +301,19 @@ CEP 版已实现画布与参数的自动持久化：
 - 对外分发通常不需要 `.debug`（避免暴露调试端口）；内部调试分发可保留。
 - 如你更新了根目录的 `lib/mixbox.js`，请同步更新到 `cep_ext/.../js/mixbox.js`（可直接运行 `sync_cep_extension.ps1` 完成复制与同步）。
 
+## 6) 分发（签名 ZXP，无需 PlayerDebugMode）
+
+未签名 CEP 扩展通常需要开启 `PlayerDebugMode`（Windows 要改注册表）。如要对外分发且避免用户改注册表，建议使用 ZXP 签名打包：
+
+1. 安装 Adobe Extension Signing Toolkit（拿到 `ZXPSignCmd.exe`）。
+2. 设置 `ZXPSIGNCMD_PATH`（示例）：
+   - `$env:ZXPSIGNCMD_PATH = "C:\\path\\to\\ZXPSignCmd.exe"`
+3. 生成自签名证书（只需一次）：
+   - `powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\create_cep_self_signed_cert.ps1 -out_p12_path .\CEP_package_tools\certs\cep_self_signed.p12`
+4. 生成签名 `.zxp`：
+   - `powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12`
+5. 安装 `.zxp`（推荐用 Adobe 的安装器工具，如 `UnifiedPluginInstallerAgent` 或 `ExManCmd`）。
+
 ---
 
 ## 附录：UXP vs CEP（简版）
