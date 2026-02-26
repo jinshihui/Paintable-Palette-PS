@@ -1,4 +1,4 @@
-# Photoshop UXP 调色盘面板插件开发文档 (Mixbox Palette Panel)
+# Photoshop UXP 调色盘面板插件开发文档 (PaintablePalette Panel)
 ## 1. 项目概述
 
 ### 1.1 目标
@@ -23,7 +23,7 @@
 本仓库目前同时包含两套实现：
 
 - **UXP 版（推荐/现代）**：根目录 `manifest.json` + `src/`（本文件前半部分主要描述的就是 UXP 版）。
-- **CEP 版（Legacy Extension）**：`cep_ext/com.example.mixboxpalette/`（用于研究/兼容旧扩展体系）。
+- **CEP 版（Legacy Extension）**：`cep_ext/com.jinshihui.paintablepalette/`（用于研究/兼容旧扩展体系）。
 
 ---
 
@@ -260,11 +260,11 @@ img.src = url;
 
 ---
 
-# CEP 版开发/分发指南（Mixbox Palette (CEP)）
+# CEP 版开发/分发指南（PaintablePalette (CEP)）
 > 说明：CEP 在 Photoshop 25.x 属于 Legacy Extension。实际表现（尤其是与选项卡组切换相关）由宿主控制，扩展侧无法完全避免重载。
 
 ## 1) 目录结构
-- CEP 扩展根目录：`cep_ext/com.example.mixboxpalette/`
+- CEP 扩展根目录：`cep_ext/com.jinshihui.paintablepalette/`
   - `CSXS/manifest.xml`：CEP 清单
   - `index.html`：面板页面
   - `js/main.js`：面板逻辑（RGB+Mixbox 绘制、吸色、状态持久化）
@@ -275,12 +275,12 @@ img.src = url;
 1. 开启 CEP 调试模式（未签名扩展需要）：
    - 注册表：`HKCU\Software\Adobe\CSXS.11` 下 `PlayerDebugMode` 设为字符串 `1`
 2. 扩展目录（当前用户）：
-   - `%APPDATA%\Adobe\CEP\extensions\com.example.mixboxpalette\`
+   - `%APPDATA%\Adobe\CEP\extensions\com.jinshihui.paintablepalette\`
 3. 同步脚本（推荐，避免手动复制）：
    - `powershell -ExecutionPolicy Bypass -File .\sync_cep_extension.ps1`
    - 该脚本会把 `lib/mixbox.js` 复制到 `cep_ext/.../js/mixbox.js`，再同步到扩展目录。
 4. 重启 Photoshop 后在菜单打开：
-   - `窗口 > 扩展(旧版) > Mixbox Palette (CEP)`
+   - `窗口 > 扩展(旧版) > PaintablePalette (CEP)`
 
 ## 3) DevTools 调试
 1. 确保扩展根目录存在 `.debug` 文件（本仓库已提供）。
@@ -297,7 +297,7 @@ CEP 版已实现画布与参数的自动持久化：
 - Mixbox latent：不持久化；恢复后对像素标脏，后续 Mixbox 绘制时按需从像素同步 latent。
 
 ## 5) 分发（目录/zip）
-- 直接把 `cep_ext/com.example.mixboxpalette/` 作为可分发的扩展目录（可自行压缩为 zip）。
+- 直接把 `cep_ext/com.jinshihui.paintablepalette/` 作为可分发的扩展目录（可自行压缩为 zip）。
 - 对外分发通常不需要 `.debug`（避免暴露调试端口）；内部调试分发可保留。
 - 如你更新了根目录的 `lib/mixbox.js`，请同步更新到 `cep_ext/.../js/mixbox.js`（可直接运行 `sync_cep_extension.ps1` 完成复制与同步）。
 

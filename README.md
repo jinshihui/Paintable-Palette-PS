@@ -50,12 +50,12 @@
 1. 开启 CEP 调试模式（未签名扩展需要）：
    - 注册表：`HKCU\\Software\\Adobe\\CSXS.11` 下 `PlayerDebugMode` 设为字符串 `1`
 2. 把扩展目录放到：
-   - `%APPDATA%\\Adobe\\CEP\\extensions\\com.example.mixboxpalette\\`
+   - `%APPDATA%\\Adobe\\CEP\\extensions\\com.jinshihui.paintablepalette\\`
 3. 推荐用同步脚本（避免手动复制）：
    - `powershell -ExecutionPolicy Bypass -File .\\sync_cep_extension.ps1`
 4. 重启 Photoshop
 5. 在 Photoshop 打开：
-   - `窗口 > 扩展(旧版) > Mixbox Palette (CEP)`
+   - `窗口 > 扩展(旧版) > PaintablePalette (CEP)`
 
 ### B. DevTools 调试
 
@@ -67,7 +67,7 @@
 
 ### C. 分发（可选）
 
-- 直接把 `cep_ext/com.example.mixboxpalette/` 作为扩展目录分发（可自行压缩为 zip）。
+- 直接把 `cep_ext/com.jinshihui.paintablepalette/` 作为扩展目录分发（可自行压缩为 zip）。
 - 对外分发通常不需要 `.debug`（避免暴露调试端口）；内部调试分发可保留。
 
 ### D. 签名打包分发（ZXP，无需改注册表）
@@ -91,7 +91,7 @@
 - `manifest.json`：UXP manifest（v5）
 - `lib/mixbox.js`：Mixbox 库（用于 Mixbox 模式）
 - `mypackage/`：UXP `.ccx` 与安装脚本
-- `cep_ext/com.example.mixboxpalette/`：CEP 扩展实现
+- `cep_ext/com.jinshihui.paintablepalette/`：CEP 扩展实现
 - `sync_cep_extension.ps1`：CEP 开发态同步到 `extensions` 目录
 - `CEP_package_tools/create_cep_self_signed_cert.ps1`：生成 CEP 自签名证书（`.p12`）
 - `CEP_package_tools/package_cep_zxp.ps1`：CEP 扩展签名打包为 `.zxp`

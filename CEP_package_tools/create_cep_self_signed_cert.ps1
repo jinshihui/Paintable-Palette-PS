@@ -19,6 +19,11 @@ if (!(Test-Path -LiteralPath $zxpsigncmd_path)) {
   throw "ZXPSignCmd not found: $zxpsigncmd_path"
 }
 
+$zxpsign_head = Get-Content -LiteralPath $zxpsigncmd_path -Encoding Byte -TotalCount 2
+if ($zxpsign_head.Length -lt 2 -or $zxpsign_head[0] -ne 0x4D -or $zxpsign_head[1] -ne 0x5A) {
+  throw "Invalid ZXPSignCmd binary: $zxpsigncmd_path. Windows .exe must start with MZ header. Current file may be an HTML download page or wrong platform binary."
+}
+
 if (-not $password) {
   $password = Read-Host "P12 password" -AsSecureString
 }

@@ -3,7 +3,7 @@ setlocal enableextensions
 
 rem Install UXP .ccx package via UnifiedPluginInstallerAgent (UPIA)
 
-set "CCX_PATH=%~dp0com.example.mixboxpalette_PS.ccx"
+set "CCX_PATH=%~dp0com.jinshihui.paintablepalette_PS.ccx"
 if not exist "%CCX_PATH%" (
   echo [ERROR] CCX file not found: "%CCX_PATH%"
   echo Put the .ccx next to this .bat file or edit CCX_PATH in the script.

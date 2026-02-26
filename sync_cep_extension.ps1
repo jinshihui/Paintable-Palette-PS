@@ -1,7 +1,7 @@
 param(
-  [string]$source_dir = (Join-Path $PSScriptRoot "cep_ext\\com.example.mixboxpalette"),
+  [string]$source_dir = (Join-Path $PSScriptRoot "cep_ext\\com.jinshihui.paintablepalette"),
   [string]$extensions_root = "C:\\Users\\jinxx\\AppData\\Roaming\\Adobe\\CEP\\extensions",
-  [string]$extension_id = "com.example.mixboxpalette"
+  [string]$extension_id = "com.jinshihui.paintablepalette"
 )
 
 $ErrorActionPreference = "Stop"

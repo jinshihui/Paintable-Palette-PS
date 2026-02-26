@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <ExtensionManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    ExtensionBundleId="com.example.mixboxpalette"
-    ExtensionBundleName="Mixbox Palette (CEP)"
+    ExtensionBundleId="com.jinshihui.paintablepalette"
+    ExtensionBundleName="PaintablePalette (CEP)"
     ExtensionBundleVersion="1.0.0"
     Version="11.0">
     <ExtensionList>
-        <Extension Id="com.example.mixboxpalette.panel" Version="1.0.0" />
+        <Extension Id="com.jinshihui.paintablepalette.panel" Version="1.0.0" />
     </ExtensionList>
 
     <ExecutionEnvironment>
@@ -21,7 +21,7 @@
     </ExecutionEnvironment>
 
     <DispatchInfoList>
-        <Extension Id="com.example.mixboxpalette.panel">
+        <Extension Id="com.jinshihui.paintablepalette.panel">
             <DispatchInfo>
                 <Resources>
                     <MainPath>./index.html</MainPath>
@@ -32,7 +32,7 @@
                 </Lifecycle>
                 <UI>
                     <Type>Panel</Type>
-                    <Menu>Mixbox Palette (CEP)</Menu>
+                    <Menu>PaintablePalette (CEP)</Menu>
                     <Geometry>
                         <Size>
                             <Width>320</Width>

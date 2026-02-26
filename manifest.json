@@ -1,6 +1,6 @@
 {
-  "id": "com.example.mixboxpalette",
-  "name": "Mixbox Palette",
+  "id": "com.jinshihui.paintablepalette",
+  "name": "PaintablePalette",
   "version": "1.0.0",
   "icons": [
     { "width": 23, "height": 23, "path": "assets/icon-23.png" },
@@ -14,7 +14,7 @@
     {
       "type": "panel",
       "id": "main",
-      "label": "Mixbox Palette",
+      "label": "PaintablePalette",
       "icons": [
         { "width": 23, "height": 23, "path": "assets/icon-23.png" },
         { "width": 46, "height": 46, "path": "assets/icon-46.png" },

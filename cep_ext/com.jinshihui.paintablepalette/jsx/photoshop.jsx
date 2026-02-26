@@ -1,4 +1,4 @@
-function mixboxpalette_getForegroundRGB() {
+function paintablepalette_getForegroundRGB() {
     try {
         var c = app.foregroundColor;
         var r = Math.round(c.rgb.red);
@@ -10,7 +10,7 @@ function mixboxpalette_getForegroundRGB() {
     }
 }
 
-function mixboxpalette_setForegroundRGB(r, g, b) {
+function paintablepalette_setForegroundRGB(r, g, b) {
     var c = new SolidColor();
     c.rgb.red = r;
     c.rgb.green = g;

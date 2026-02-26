@@ -1,7 +1,7 @@
 param(
-  [string]$extension_id = "com.example.mixboxpalette",
+  [string]$extension_id = "com.jinshihui.paintablepalette",
   [string]$repo_root = (Split-Path -Parent $PSScriptRoot),
-  [string]$source_dir = (Join-Path (Split-Path -Parent $PSScriptRoot) "cep_ext\\com.example.mixboxpalette"),
+  [string]$source_dir = (Join-Path (Split-Path -Parent $PSScriptRoot) "cep_ext\\com.jinshihui.paintablepalette"),
   [string]$mixbox_source = (Join-Path (Split-Path -Parent $PSScriptRoot) "lib\\mixbox.js"),
   [string]$out_dir = (Join-Path (Split-Path -Parent $PSScriptRoot) "dist\\cep_zxp"),
   [string]$zxpsigncmd_path = $(if (![string]::IsNullOrWhiteSpace($env:ZXPSIGNCMD_PATH)) { $env:ZXPSIGNCMD_PATH } else { (Join-Path $PSScriptRoot "ZXPSignCmd.exe") }),
@@ -26,6 +26,11 @@ if ([string]::IsNullOrWhiteSpace($zxpsigncmd_path)) {
 
 if (!(Test-Path -LiteralPath $zxpsigncmd_path)) {
   throw "ZXPSignCmd not found: $zxpsigncmd_path"
+}
+
+$zxpsign_head = Get-Content -LiteralPath $zxpsigncmd_path -Encoding Byte -TotalCount 2
+if ($zxpsign_head.Length -lt 2 -or $zxpsign_head[0] -ne 0x4D -or $zxpsign_head[1] -ne 0x5A) {
+  throw "Invalid ZXPSignCmd binary: $zxpsigncmd_path. Windows .exe must start with MZ header. Current file may be an HTML download page or wrong platform binary."
 }
 
 if (!(Test-Path -LiteralPath $cert_p12_path)) {

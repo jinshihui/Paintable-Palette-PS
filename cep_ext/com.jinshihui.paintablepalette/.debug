@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ExtensionList>
-  <Extension Id="com.example.mixboxpalette.panel">
+  <Extension Id="com.jinshihui.paintablepalette.panel">
     <HostList>
       <Host Name="PHXS" Port="8088" />
     </HostList>

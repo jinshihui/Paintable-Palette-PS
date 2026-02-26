@@ -5,7 +5,7 @@ function eval_script(script_text) {
   return new Promise((resolve) => window.__adobe_cep__.evalScript(script_text, resolve));
 }
 
-console.log("[mixboxpalette] main.js loaded");
+console.log("[paintablepalette] main.js loaded");
 
 let mixbox_load_promise = null;
 function ensure_mixbox_loaded() {
@@ -50,7 +50,7 @@ function set_swatch(rgb) {
 }
 
 async function get_foreground_rgb() {
-  const result = await eval_script("mixboxpalette_getForegroundRGB()");
+  const result = await eval_script("paintablepalette_getForegroundRGB()");
   if (!result) throw new Error("Empty result from ExtendScript.");
   return JSON.parse(result);
 }
@@ -59,7 +59,7 @@ async function set_foreground_rgb(rgb) {
   const r = clamp_0_255(Math.round(rgb.r));
   const g = clamp_0_255(Math.round(rgb.g));
   const b = clamp_0_255(Math.round(rgb.b));
-  const result = await eval_script(`mixboxpalette_setForegroundRGB(${r}, ${g}, ${b})`);
+  const result = await eval_script(`paintablepalette_setForegroundRGB(${r}, ${g}, ${b})`);
   if (result && String(result).toUpperCase() !== "OK") {
     throw new Error(`ExtendScript returned: ${result}`);
   }
@@ -71,11 +71,11 @@ const BG_R = 232;
 const BG_G = 232;
 const BG_B = 232;
 const LATENT_SIZE = 7;
-const DB_NAME = "mixboxpalette";
+const DB_NAME = "paintablepalette";
 const DB_VERSION = 1;
 const DB_STORE = "state";
 const DB_STATE_KEY = "main";
-const LEGACY_LOCAL_STORAGE_KEYS = ["mixboxpalette_state_v2", "mixboxpalette_state_v1"];
+const LEGACY_LOCAL_STORAGE_KEYS = ["paintablepalette_state_v2", "paintablepalette_state_v1"];
 
 let canvas_el;
 let ctx;
@@ -213,7 +213,7 @@ function try_migrate_legacy_local_storage_state() {
   try {
     state = JSON.parse(raw);
   } catch (err) {
-    console.warn("[mixboxpalette] legacy restore: invalid JSON:", err);
+    console.warn("[paintablepalette] legacy restore: invalid JSON:", err);
     return null;
   }
 
@@ -235,7 +235,7 @@ function try_migrate_legacy_local_storage_state() {
 
     return { migrated: true };
   } catch (err) {
-    console.warn("[mixboxpalette] legacy restore failed:", err);
+    console.warn("[paintablepalette] legacy restore failed:", err);
     return null;
   }
 }
@@ -265,7 +265,7 @@ function save_state_to_idb() {
     .then(() => {
       has_unsaved_changes = false;
     })
-    .catch((err) => console.warn("[mixboxpalette] idb save failed:", err));
+    .catch((err) => console.warn("[paintablepalette] idb save failed:", err));
 }
 
 function mark_unsaved_changes() {
@@ -435,7 +435,7 @@ function draw_stamp(cx, cy) {
     try {
       update_pixel_buffer_mixbox(cx, cy, brush_radius, brush_color);
     } catch (err) {
-      console.warn("[mixboxpalette] mixbox draw failed, fallback to rgb:", err);
+      console.warn("[paintablepalette] mixbox draw failed, fallback to rgb:", err);
       set_status(`Mixbox ERROR, fallback RGB: ${err && err.message ? err.message : String(err)}`);
       update_pixel_buffer_rgb(cx, cy, brush_radius, brush_color);
     }
@@ -605,7 +605,7 @@ async function init() {
     const record = await idb_get_state();
     restored = restore_state_from_record(record);
   } catch (err) {
-    console.warn("[mixboxpalette] idb restore failed:", err);
+    console.warn("[paintablepalette] idb restore failed:", err);
   }
 
   if (!restored) {
@@ -634,9 +634,9 @@ async function init() {
   canvas_el.addEventListener("pointerup", on_pointer_up);
   canvas_el.addEventListener("pointerleave", on_pointer_up);
 
-  console.log("[mixboxpalette] init ok. mixbox loaded:", !!(window.mixbox && window.mixbox.lerp));
-  if (restored) console.log("[mixboxpalette] state restored from indexedDB");
-  if (migrated) console.log("[mixboxpalette] legacy localStorage migrated to indexedDB");
+  console.log("[paintablepalette] init ok. mixbox loaded:", !!(window.mixbox && window.mixbox.lerp));
+  if (restored) console.log("[paintablepalette] state restored from indexedDB");
+  if (migrated) console.log("[paintablepalette] legacy localStorage migrated to indexedDB");
 
   try {
     const fg = await get_foreground_rgb();
@@ -648,7 +648,7 @@ async function init() {
   }
 
   const t1 = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
-  console.log("[mixboxpalette] init time ms:", Math.round(t1 - t0));
+  console.log("[paintablepalette] init time ms:", Math.round(t1 - t0));
 }
 
 document.addEventListener("DOMContentLoaded", init);
