@@ -65,15 +65,10 @@
 
 > 已知现象：在某些 Photoshop 版本/布局下，CEP 面板与同组选项卡切换会被宿主销毁重建，DevTools 连接会断开，需要重新打开 8088。
 
-### C. 分发打包（ZIP）
+### C. 分发（可选）
 
-仓库提供最小打包脚本（生成可分发 zip，默认不包含 `.debug`）：
-
-- `powershell -ExecutionPolicy Bypass -File .\\package_cep_extension.ps1`
-
-如需包含 `.debug`（内部调试分发）：
-
-- `powershell -ExecutionPolicy Bypass -File .\\package_cep_extension.ps1 -include_debug`
+- 直接把 `cep_ext/com.example.mixboxpalette/` 作为扩展目录分发（可自行压缩为 zip）。
+- 对外分发通常不需要 `.debug`（避免暴露调试端口）；内部调试分发可保留。
 
 ## 目录结构（速览）
 
@@ -83,7 +78,6 @@
 - `mypackage/`：UXP `.ccx` 与安装脚本
 - `cep_ext/com.example.mixboxpalette/`：CEP 扩展实现
 - `sync_cep_extension.ps1`：CEP 开发态同步到 `extensions` 目录
-- `package_cep_extension.ps1`：CEP 分发 zip 打包脚本
 - `doc/DEVELOPMENT_GUIDE.md`：实现细节与开发记录
 
 ## 常见问题
@@ -95,4 +89,3 @@
 ### 2) Mixbox 许可
 
 Mixbox 使用 **CC BY-NC 4.0**（非商业用途）。若计划商用发布，请先确认许可与授权策略。
-
