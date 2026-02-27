@@ -1,322 +1,201 @@
-# Photoshop UXP 调色盘面板插件开发文档 (PaintablePalette Panel)
+# Photoshop CEP 调色盘面板插件开发文档 (PaintablePalette)
+
 ## 1. 项目概述
 
 ### 1.1 目标
-在 Photoshop 内构建一个独立的“调色盘面板（Palette Panel）”，提供类似传统画板的混色体验：
-*   **功能**：像小画布一样用半透明笔刷“涂抹调色盘”。
-*   **颜色源**：笔刷颜色实时读取 **Photoshop 当前前景色**。
-*   **吸色**：按住 **Alt** 在调色盘上吸色，并立即同步回 Photoshop 前景色。
-*   **核心特性**：混色算法支持在 **RGB 线性混合** 与 **Mixbox 自然颜料混色** 之间切换。
+在 Photoshop 中提供一个可涂抹的调色盘面板：
+- 使用 Photoshop 当前前景色作为笔刷色进行涂抹混色。
+- 支持 `RGB` 与 `Mixbox` 两种混色模式。
+- 支持吸色并写回 Photoshop 前景色。
+- 在 CEP 面板被宿主重建后恢复画布与参数状态。
 
 ### 1.2 技术选型
-*   **插件架构**：**Adobe UXP Panel**（纯前端技术栈）。
-*   **语言**：JavaScript + HTML + CSS。
-*   **绘图/显示引擎**：**位图直出**（维护 `pixelBuffer`，通过 `ImageBlob(type:"image/uncompressed")` 刷新 `<img>`）。
-*   **混色库**：[Mixbox](https://github.com/scrtwpns/mixbox) (CC BY-NC 4.0，非商业/学习用途)。
-*   **PS 交互**：通过 Photoshop DOM API (`app.foregroundColor`) 读写颜色。
+- 插件架构：CEP (Legacy Extension)
+- 前端：JavaScript + HTML + CSS
+- 绘制：`<canvas>` + `ImageData` 像素缓冲
+- 宿主桥接：`window.__adobe_cep__.evalScript(...)` + ExtendScript
+- 混色库：Mixbox（`lib/mixbox.js` 同步到 CEP 包内）
 
-### 1.3 适用场景
-*   需要自然色彩混合（如油画、水彩风格）的绘图辅助。
-*   不喜欢 Photoshop 默认色板或取色器的艺术家。
-
-### 1.4 本仓库包含的插件版本
-本仓库目前同时包含两套实现：
-
-- **UXP 版（推荐/现代）**：根目录 `manifest.json` + `src/`（本文件前半部分主要描述的就是 UXP 版）。
-- **CEP 版（Legacy Extension）**：`cep_ext/com.jinshihui.paintablepalette/`（用于研究/兼容旧扩展体系）。
-
----
-
-## 2. 架构设计
-
-### 2.1 模块划分
-1.  **UI 层**：面板骨架、工具栏（笔刷大小、不透明度、硬度、模式切换、清空）、**Surface 容器（`<img>`）**。
-2.  **输入层 (Input)**：监听 `pointerdown` / `pointermove` / `pointerup` 及键盘修饰键（Alt）。
-3.  **PS 颜色桥接层 (Color Bridge)**：
-    *   `getForegroundRGB()`: 读取 `app.foregroundColor`。
-    *   `setForegroundRGB(rgb)`: 写入 `app.foregroundColor`。
-4.  **笔刷引擎 (Brush Engine)**：
-    *   **Stamp 机制**：将连续笔触转换为一系列圆形印章。
-    *   **Dirty Rect（可选）**：后续可仅刷新受影响区域（当前实现先以全帧刷新为主，靠节流保证性能）。
-5.  **混色引擎 (Mixing Engine)**：
-    *   `blendRGB(dst, src, a)`: 标准线性插值。
-    *   `blendMixbox(dst, src, a)`: 调用 Mixbox 库进行颜料模拟混合。
-6.  **显示层 (Presenter)**：
-    *   把 `pixelBuffer` 转为 `Uint8Array`，构造 `ImageBlob`，再 `URL.createObjectURL()` 刷新 `<img>.src`（并 `revokeObjectURL`）。
-
-### 2.2 数据流
-*   **涂抹 (Paint)**:
-    `PointerMove` -> 读取 PS 前景色 -> 计算 Stamp 位置 -> **混色算法 (RGB/Mixbox)** 更新 `pixelBuffer/latentBuffer` -> `requestAnimationFrame` 节流刷新 `ImageBlob` -> 更新 `<img>`。
-*   **吸色 (Pick)**:
-    `Alt + Click/Drag` -> 读取 `pixelBuffer` 像素 -> `setForegroundRGB` -> 更新 PS 前景色。
+### 1.3 目录结构
+- CEP 扩展根目录：`cep_ext/com.jinshihui.paintablepalette/`
+  - `CSXS/manifest.xml`：CEP 清单
+  - `index.html`：面板页面
+  - `js/main.js`：面板主逻辑（绘制、吸色、状态持久化）
+  - `js/styles.css`：面板样式
+  - `js/mixbox.js`：Mixbox 库（由同步脚本复制）
+  - `jsx/photoshop.jsx`：ExtendScript 桥接（读写前景色）
+  - `.debug`：本地 DevTools 端口配置
 
 ---
 
-## 3. 开发环境配置
+## 2. 开发环境配置
 
-### 3.1 必备软件
-1.  **Adobe Photoshop 2022+** (支持 UXP Manifest v5)。
-2.  **Adobe UXP Developer Tool (UDT)**: 用于加载、调试和打包插件。
-    *   *安装方式*：通过 Creative Cloud Desktop 安装。
-    *   *权限*：需要管理员权限以启用 Developer Mode。
-3.  **Node.js**:用于管理开发依赖（如 ESLint）。
+### 2.1 必备软件
+1. Adobe Photoshop（支持 CEP 扩展）
+2. Node.js（用于本仓库脚本与依赖）
+3. PowerShell（运行同步与打包脚本）
 
-### 3.2 推荐环境
-*   **编辑器**: VS Code 或 Cursor。
-*   **包管理器**: `npm` 或 `uv` (本项目使用 `uv` 管理 Python 环境，前端依赖用 `npm`)。
+### 2.2 开发态安装（Windows）
+1. 开启 CEP 调试模式：
+   - 注册表：`HKCU\Software\Adobe\CSXS.11`
+   - 新建字符串值：`PlayerDebugMode = 1`
+2. 执行同步脚本：
+   - `powershell -ExecutionPolicy Bypass -File .\sync_cep_extension.ps1`
+3. 启动 Photoshop，在菜单打开：
+   - `窗口 > 扩展(旧版) > PaintablePalette (CEP)`
 
-### 3.3 UDT 初始化步骤
-1.  启动 UXP Developer Tool。
-2.  开启 **Developer Mode**。
-3.  点击 **Add Plugin**，选择本项目的 `manifest.json` 所在目录。
-4.  点击 **Load** 将插件加载到 Photoshop 中。
-5.  点击 **Debug** 打开调试控制台 (DevTools)。
-
----
-
-## 4. 开发计划 (Milestones)
-
-### Phase 0: 环境与骨架 ✅ 已完成
-- [x] 初始化项目结构 (`manifest.json`, `index.html`, `main.js`)。
-- [x] 配置 `package.json` 及基础开发工具。
-- [x] 验证 UDT 能成功加载并显示面板。
-
-### Phase 1: 基础调色盘闭环 (MVP) ✅ 已完成
-
-#### 1a. 笔刷与显示（当前实现）
-- 监听 `pointerdown`/`pointermove`/`pointerup` 事件 ✅
-- 连续轨迹采样：相邻点距离 > `radius * 0.35` 时插入 stamp ✅
-- 每个 stamp 更新 `pixelBuffer`（RGB 或 Mixbox 分支）✅
-- 显示层：`pixelBuffer` → `ImageBlob(type:"image/uncompressed")` → `<img>`，并用 `requestAnimationFrame` 节流刷新 ✅
-- **注意**：Photoshop UXP 的 `<canvas>` 能力受限（例如 `getImageData/putImageData` 可能不可用），本项目不再依赖 canvas 的像素 API
-
-#### 1b. PS 前景色双向同步
-- **读前景色**：`pointerdown` 时读 `app.foregroundColor.rgb`，缓存为笔刷色 ✅
-- **吸色写入**：Alt+click 或 Pick 按钮模式，读 `pixelBuffer` → `executeAsModal()` 内写 `app.foregroundColor` ✅
-- **关键**：写入前景色必须包裹在 `require("photoshop").core.executeAsModal()` 内
-
-#### 1c. 交互逻辑
-- **左键拖动**：涂抹（读前景色 → stamp 更新 buffer → 刷新 surface） ✅
-- **Alt + 左键** 或 **Pick 按钮**：吸色模式 ✅
-- **Clear 按钮**：清空画布 + 重置 pixelBuffer ✅
-
-#### 1d. 验收结果
-- [x] 连续拖动涂抹顺滑（300×300 buffer）
-- [x] 笔刷颜色来自 PS 前景色（改前景色后下一笔生效）
-- [x] Alt 吸色后 PS 前景色立即更新（`executeAsModal`）
-- [x] Clear 清空无残留
-
-#### 1e. 踩坑记录
-| 问题                  | 原因                                      | 解决方案                                           |
-| --------------------- | ----------------------------------------- | -------------------------------------------------- |
-| CSS/JS 文件加载失败   | UXP 相对路径基于 `manifest.json` 所在目录 | HTML 内路径加 `src/` 前缀                          |
-| `plugin: {}` 报错     | UXP 要求 plugin 对象必须有 `create` 方法  | 补上 `create`/`destroy`                            |
-| Canvas 不可见         | UXP 不支持 CSS flex 撑开 canvas           | 用内联 `style` + HTML `width`/`height` 属性        |
-| `getImageData` 不可用 | UXP Canvas 仅支持基本形状 API             | 用 `arc()`+`fill()` 画笔刷，`pixelBuffer` 追踪颜色 |
-| 设置前景色失败        | 修改 PS 状态需 modal scope                | 用 `executeAsModal()` 包裹                         |
-| Alt keydown 不触发    | PS 拦截了 Alt 键                          | 读 `e.altKey` + Pick 按钮后备                      |
-| 越画越卡/Clear 无效   | UXP `<canvas>` 绘制命令可能累积           | 改为 `ImageBlob` 位图直出 + `<img>` 显示 ✅         |
-| `ImageBlob` 构造报错  | 传参类型/格式不兼容                       | `new ImageBlob(Uint8Array, {type:"image/uncompressed", ...})` ✅ |
-| Mixbox 覆盖 RGB 不融合 | RGB 只更新 `pixelBuffer`，`latentBuffer` 过期 | RGB 涂抹标记 `latent_dirty`，Mixbox 前按需同步 latent ✅ |
-
-### Phase 2: 接入 Mixbox (Core Feature) 🔧 进行中
-
-#### 2a. 引入 Mixbox 库 ✅
-- [x] `npm install mixbox`，复制 `mixbox.js` 到 `lib/mixbox.js`
-- [x] 在 `main.js` 中 `require("./lib/mixbox")` 加载库（路径基于 manifest 根）
-- [x] 验证 `mixbox.lerp()` 基本调用无报错
-
-#### 2b. Latent Buffer 混色架构 ✅
-- [x] 新增 `latentBuffer` (Float64Array, W×H×7) 存储每像素的 Mixbox latent 值
-- [x] `pixelBuffer` 保留用于吸色（从 latent 转回 RGB）
-- [x] `drawStamp` 中根据 `colorMode` 分支：
-  - **RGB 模式**：逐像素 alpha-blend 更新 `pixelBuffer` ✅
-  - **Mixbox 模式**：逐像素 latent 混合 → 转回 RGB 写回 `pixelBuffer` ✅
-- [x] `doClear` 时同步重置 `latentBuffer` 和 `pixelBuffer`
-
-#### 2g. 打包与安装（CCX）✅
-- [x] UDT 打包要求：manifest 里需配置 icons（包含 panel entrypoints 的 icons）
-- [x] 增加图标资源：`assets/icon-23.png`、`assets/icon-46.png`、`assets/icon-48.png`、`assets/icon-96.png`
-- [x] 已可通过 UDT 打包生成 `.ccx`
-- [x] 命令行安装脚本：`mypackage/install_ccx.bat`（调用 UnifiedPluginInstallerAgent 安装 `.ccx`）
-
-#### 2c. UI 模式切换 ✅
-- [x] `#select-mode` select 绑定事件，切换 `colorMode`（"rgb" / "mixbox"）
-- [x] 状态栏显示当前模式
-
-#### 2d. 验收结果
-- [x] Mixbox 模式下黄+蓝 → 绿色调 ✅（WYSIWYG，canvas=吸色结果）
-- [x] RGB 模式下黄+蓝 → 灰色调 ✅
-- [x] 切换模式不影响 RGB 模式性能 ✅
-- [x] 吸色功能在两种模式下均正常 ✅
-
-#### 2e. 🚧 待解决：Mixbox 渲染性能
-**问题**：Mixbox 模式下笔刷不够丝滑，且越画越迟滞。
-
-**已尝试方案**：
-
-| 方案                  | 描述                           | 性能                    | 渲染质量               |
-| --------------------- | ------------------------------ | ----------------------- | ---------------------- |
-| ① 逐像素 `fillRect`   | 每像素 1 次 fillRect           | ❌ 极慢（~1257次/stamp） | ✅ 完美 WYSIWYG         |
-| ② 单次 `arc` 中心色   | 取中心像素结果色，alpha=1.0    | ✅ 极快                  | ⚠️ 不透明感，但 WYSIWYG |
-| ③ 半透明 `arc` 笔刷色 | 与 RGB 模式相同渲染            | ✅ 极快                  | ❌ canvas≠吸色结果      |
-| ④ scanline 逐行渲染   | 每行 1 次 fillRect（当前方案） | ⚠️ 尚可但越画越慢        | ✅ 近似 WYSIWYG         |
-
-**"越画越慢"根因**：UXP canvas 大量 `fillRect` 调用导致内部绘制命令累积。
-
-**已解决（方案选择）**：放弃 `<canvas>` 命令式绘制，改为 **`pixelBuffer` → `ImageBlob` → `<img>`** 的位图刷新链路。
-- 结论：RGB/Mixbox 连续绘制均不再出现“下笔短时迟滞”或“长时间累计迟滞”，`Clear` 也能正常恢复状态。
-- 关键实现要点：
-  - `ImageBlob` 构造器入参使用 `Uint8Array`（而非 `ArrayBuffer`），并匹配 `image/uncompressed` 的尺寸/格式参数。
-  - 用 `requestAnimationFrame` + 最小间隔节流刷新，避免高频生成对象 URL。
-  - 每次刷新后 `URL.revokeObjectURL(lastUrl)`，避免内存累积。
-
-#### 2f. ✅ 修复：RGB/Mixbox 跨模式不融合
-**问题**：Mixbox 笔触覆盖到 RGB 模式的历史笔触时，出现边缘不融合（像两层材质无法混合），但 RGB 覆盖 Mixbox 不受影响。
-
-**根因**：RGB 模式只更新 `pixelBuffer`，但 `latentBuffer` 没有对应更新；后续 Mixbox 混合仍以旧 latent（常为背景）作为底色。
-
-**解决**：
-- 新增 `latent_dirty` 标记：RGB 涂抹命中的像素置脏。
-- Mixbox 更新该像素前：若脏，则先 `rgbToLatent(pixelBuffer)` 同步到 `latentBuffer`，再进行 Mixbox 混合。
-
-### Phase 3: 优化与完善 (Polish)
-- [ ] **性能优化**：Mixbox 渲染性能（最高优先级）
-- [ ] **性能优化**：`requestAnimationFrame` 节流
-- [ ] **UI 完善**：添加笔刷参数控制（大小、不透明度、硬度 slider）
-- [ ] **功能增强**：保存/加载调色盘 (Save/Load)
+### 2.3 DevTools 调试
+1. 确保扩展目录内有 `.debug` 文件。
+2. 打开面板后访问 `http://127.0.0.1:8088`。
+3. 选择对应面板进入调试。
 
 ---
 
-## 5. 关键 API 参考
+## 3. 开发过程（Milestones）
 
-### Photoshop DOM
-```javascript
-const app = require('photoshop').app;
+### Phase 0：骨架搭建
+- 建立 CEP 清单 `CSXS/manifest.xml`，定义面板入口与尺寸。
+- 完成 `index.html + js/main.js + jsx/photoshop.jsx` 最小闭环。
+- 验证能在 `窗口 > 扩展(旧版)` 打开面板。
 
-// 读取前景色
-const fgColor = app.foregroundColor; // SolidColor 对象
-const rgb = fgColor.rgb; // { red: 255, green: 0, blue: 0 }
+### Phase 1：基础绘制闭环 (MVP)
+- 以 `canvas` 像素缓冲作为单一真值源：
+  - `pixel_buffer`（RGBA）用于显示与吸色。
+- 实现 `pointerdown / pointermove / pointerup`：
+  - 连续轨迹按间距采样为 stamp，避免断笔。
+- 实现基础工具：
+  - `Clear` 清空画布
+  - `Pick` 模式与 `Alt` 临时吸色
 
-// 写入前景色
-const newColor = new app.SolidColor();
-newColor.rgb.red = 255;
-newColor.rgb.green = 128;
-newColor.rgb.blue = 0;
-app.foregroundColor = newColor;
+### Phase 2：Photoshop 前景色双向同步
+- JS -> PS：
+  - 调用 `paintablepalette_setForegroundRGB(r,g,b)` 写入前景色。
+- PS -> JS：
+  - 调用 `paintablepalette_getForegroundRGB()` 读取当前前景色。
+- 约束：
+  - `evalScript` 返回值统一按字符串处理并做显式错误分支。
+
+### Phase 3：接入 Mixbox 混色
+- 引入 `mixbox.js`，支持 `RGB`/`Mixbox` 模式切换。
+- 增加 `latent_buffer` 与 `latent_dirty`：
+  - RGB 涂抹仅更新 `pixel_buffer`，并标记脏区。
+  - Mixbox 涂抹前对脏像素按需从 RGB 同步 latent，修复跨模式不融合。
+- 保持吸色结果与画布显示一致（WYSIWYG）。
+
+### Phase 4：稳定性与状态持久化
+- 面板状态持久化到 IndexedDB：
+  - 存储 `pixel_buffer` 与关键设置（半径/透明度/硬度/模式）。
+- 增加保存节流与收尾强制保存：
+  - 高频涂抹时 debounce 存储。
+  - 抬笔时立即保存，降低异常关闭丢失概率。
+- 支持旧版 localStorage 状态迁移到 IndexedDB。
+
+### Phase 5：打包与分发
+目标：产出“已签名 ZXP”，并将其解压后的扩展目录部署到 CEP 扩展路径。
+
+1. 前置准备
+   - 确认 `CEP_package_tools/ZXPSignCmd.exe` 可用。
+   - 若你安装了其它路径的 `ZXPSignCmd.exe`，先设置环境变量：
+   - `$env:ZXPSIGNCMD_PATH = "C:\path\to\ZXPSignCmd.exe"`
+   - 确认源目录存在：`cep_ext/com.jinshihui.paintablepalette/`
+   - 确认 `lib/mixbox.js` 存在（打包脚本会复制到 `js/mixbox.js`）。
+
+2. 生成或更新签名证书（.p12）
+   - 首次打包必须先生成证书；已有证书可复用。
+   - 命令：
+```powershell
+powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\create_cep_self_signed_cert.ps1 -out_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
+```
+   - 脚本会提示输入 `P12 password`。
+   - 若目标证书已存在并需覆盖，追加 `-force`。
+
+3. 使用脚本签名并打包 ZXP
+   - 命令：
+```powershell
+powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
+```
+   - 脚本会提示输入证书密码并创建时间戳产物。
+   - 默认会排除 `.debug`；若需要包含调试配置，追加 `-include_debug`。
+   - 产物位置：`dist/cep_zxp/com.jinshihui.paintablepalette-<timestamp>.zxp`
+
+4. 验签（可选但建议）
+```powershell
+.\CEP_package_tools\ZXPSignCmd.exe -verify ".\dist\cep_zxp\com.jinshihui.paintablepalette-<timestamp>.zxp"
 ```
 
-### UXP Canvas（历史方案 / 受限）
-```javascript
-const canvas = document.querySelector("canvas");
-const ctx = canvas.getContext("2d"); // 仅支持 2d
-const imageData = ctx.getImageData(x, y, w, h);
-// 像素操作...
-ctx.putImageData(imageData, x, y);
+5. 解压 ZXP 到目录
+   - ZXP 本质是 zip 格式，可用 7-Zip/WinRAR 或 PowerShell 解压。
+   - 解压后目录必须包含：
+     - `mimetype`
+     - `META-INF/signatures.xml`
+     - `CSXS/manifest.xml`
+     - 其余扩展文件（`js/`, `jsx/`, `index.html`）
+   - PowerShell 示例：
+```powershell
+$zxp = Get-ChildItem .\dist\cep_zxp\*.zxp | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Expand-Archive -LiteralPath $zxp.FullName -DestinationPath .\dist\cep_zxp\unzipped -Force
 ```
 
-> 注意：在 Photoshop UXP 环境中，`<canvas>` 能力受限，上述 `getImageData/putImageData` 可能不可用（本项目最终也不再依赖它们）。
+6. 复制解压后的扩展目录到 CEP 路径
+   - 目标路径（Windows）：
+   - `%APPDATA%\Adobe\CEP\extensions\com.jinshihui.paintablepalette\`
+   - 复制时保持目录原样（不要丢失 `mimetype` 和 `META-INF`）。
+   - PowerShell 示例：
+```powershell
+$src = ".\dist\cep_zxp\unzipped"
+$dst = Join-Path $env:APPDATA "Adobe\CEP\extensions\com.jinshihui.paintablepalette"
+New-Item -ItemType Directory -Path $dst -Force | Out-Null
+robocopy $src $dst /E /FFT /R:2 /W:1
+```
 
-### UXP ImageBlob（当前方案）
-```javascript
-// 以 RGB 8bit 为例：buffer 长度 = width * height * 3
-const buffer = new Uint8Array(width * height * 3);
+7. 启动验证
+   - 重启 Photoshop。
+   - 打开 `窗口 > 扩展(旧版) > PaintablePalette (CEP)`。
+   - 若未显示，先检查：
+     - `CSXS/manifest.xml` 是否在目标目录内；
+     - 目标目录是否包含 `mimetype` 与 `META-INF/signatures.xml`；
+     - CEP 调试模式是否启用（未签名目录场景）。
 
-const blob = new ImageBlob(buffer, {
-  type: "image/uncompressed",
-  width,
-  height,
-  colorSpace: "RGB",
-  pixelFormat: "RGB",
-  components: 3,
-  componentSize: 8,
-  hasAlpha: false
-});
+---
 
-const url = URL.createObjectURL(blob);
-img.src = url;
-// 记得 revoke 旧 url，避免内存增长
+## 4. 关键实现说明
+
+### 4.1 数据流
+- 涂抹流程：
+  - 读取前景色 -> 轨迹采样 -> 按模式写像素 -> 调度渲染 -> 标记待保存
+- 吸色流程：
+  - 读取画布像素 -> 写回 Photoshop 前景色 -> 更新状态栏与色块
+
+### 4.2 性能策略
+- 渲染节流：
+  - 使用 `requestAnimationFrame` + 最小时间间隔，减少重复 `putImageData`。
+- 吸色节流：
+  - 连续拖动吸色限制最小间隔，避免频繁 `evalScript`。
+- 存储节流：
+  - 延迟写入 IndexedDB，降低 I/O 抖动。
+
+### 4.3 为什么使用 `latent_dirty`
+RGB 与 Mixbox 共享画布时，如果只更新 RGB 缓冲而不更新 latent，会导致 Mixbox 读取旧基色，出现边缘不融合。  
+通过 `latent_dirty` 延迟同步，可在保证正确性的同时避免每次 RGB 涂抹都做昂贵的 `rgbToLatent`。
+
+---
+
+## 5. 脚本与命令
+
+### 5.1 同步开发扩展
+```powershell
+powershell -ExecutionPolicy Bypass -File .\sync_cep_extension.ps1
+```
+
+### 5.2 证书与 ZXP 打包
+```powershell
+powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\create_cep_self_signed_cert.ps1 -out_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
+powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
 ```
 
 ---
 
 ## 6. 注意事项
-*   **Mixbox 许可**：Mixbox 使用 **CC BY-NC 4.0** 协议，仅限非商业用途。若需商用发布需联系作者授权。
-*   **性能（显示层）**：`ImageBlob + <img>` 方案会频繁生成 object URL：务必 `revokeObjectURL`，并用 `requestAnimationFrame`/最小间隔节流刷新。
-*   **性能（计算层）**：画布尺寸变大时，Mixbox 的逐像素计算会显著增加；必要时考虑 dirty rect、降采样（内部更小 buffer，显示拉伸）或降低 stamp 密度。
-*   **一致性**：RGB 与 Mixbox 混用时，需保证 `pixelBuffer` 与 `latentBuffer` 同步策略一致（本项目通过 `latent_dirty` 修复跨模式不融合）。
-*   **兼容性**：不同 PS/UXP 版本对 `ImageBlob(type:"image/uncompressed")` 的参数容忍度可能不同；遇到构造器异常优先检查入参类型（`Uint8Array`）与像素格式字段。
-*   **内存**：如果以后要做“历史/撤销/多层”，不要无上限缓存整幅 `pixelBuffer` 快照；建议以小步增量或限制层数/分辨率。
-*   **事件**：`<img>` 默认可拖拽，已禁用 `draggable`；若后续遇到触摸/手写笔问题，优先检查 `touch-action:none` 与指针坐标缩放。
-*   **打包**：UDT 打包时若报 icons 缺失，需同时在 `manifest.json` 顶层与 panel entrypoints 内配置 `icons`。
-
----
-
-## 7. 进度摘要（2026-02-11）
-- 解决“越画越卡 / Clear 无效”的根因：放弃 `<canvas>` 命令式绘制，改为 `ImageBlob + <img>` 位图直出（RGB/Mixbox 均稳定）。
-- 修复 RGB/Mixbox 跨模式不融合：引入 `latent_dirty`，Mixbox 混色前按需同步 latent。
-- 完成打包与安装闭环：补齐 manifest icons、UDT 成功打包 `.ccx`，并提供 `mypackage/install_ccx.bat` 一键命令行安装。
-- 当前默认笔刷不透明度：10%（便于混色，后续再根据手感调整 spacing/flow 策略）。
-
----
-
-# CEP 版开发/分发指南（PaintablePalette (CEP)）
-> 说明：CEP 在 Photoshop 25.x 属于 Legacy Extension。实际表现（尤其是与选项卡组切换相关）由宿主控制，扩展侧无法完全避免重载。
-
-## 1) 目录结构
-- CEP 扩展根目录：`cep_ext/com.jinshihui.paintablepalette/`
-  - `CSXS/manifest.xml`：CEP 清单
-  - `index.html`：面板页面
-  - `js/main.js`：面板逻辑（RGB+Mixbox 绘制、吸色、状态持久化）
-  - `jsx/photoshop.jsx`：ExtendScript 桥接（读/写 PS 前景色）
-  - `.debug`：DevTools 端口配置（仅用于开发调试）
-
-## 2) 开发态安装（Windows）
-1. 开启 CEP 调试模式（未签名扩展需要）：
-   - 注册表：`HKCU\Software\Adobe\CSXS.11` 下 `PlayerDebugMode` 设为字符串 `1`
-2. 扩展目录（当前用户）：
-   - `%APPDATA%\Adobe\CEP\extensions\com.jinshihui.paintablepalette\`
-3. 同步脚本（推荐，避免手动复制）：
-   - `powershell -ExecutionPolicy Bypass -File .\sync_cep_extension.ps1`
-   - 该脚本会把 `lib/mixbox.js` 复制到 `cep_ext/.../js/mixbox.js`，再同步到扩展目录。
-4. 重启 Photoshop 后在菜单打开：
-   - `窗口 > 扩展(旧版) > PaintablePalette (CEP)`
-
-## 3) DevTools 调试
-1. 确保扩展根目录存在 `.debug` 文件（本仓库已提供）。
-2. 重启 Photoshop 并打开面板后，访问：
-   - `http://127.0.0.1:8088`
-3. 在列表中选择对应面板页面进入 DevTools。
-
-> 已知现象：当面板与其它窗口在同一个选项卡组切换时，Photoshop 可能会销毁并重建 CEP 面板（DevTools 连接也会断开，需要重新进入 8088）。
-
-## 4) 状态持久化（避免切换 tab 清空）
-CEP 版已实现画布与参数的自动持久化：
-- 存储介质：IndexedDB
-- 内容：`pixelBuffer(RGBA)` + 画笔参数与 `color_mode`
-- Mixbox latent：不持久化；恢复后对像素标脏，后续 Mixbox 绘制时按需从像素同步 latent。
-
-## 5) 分发（目录/zip）
-- 直接把 `cep_ext/com.jinshihui.paintablepalette/` 作为可分发的扩展目录（可自行压缩为 zip）。
-- 对外分发通常不需要 `.debug`（避免暴露调试端口）；内部调试分发可保留。
-- 如你更新了根目录的 `lib/mixbox.js`，请同步更新到 `cep_ext/.../js/mixbox.js`（可直接运行 `sync_cep_extension.ps1` 完成复制与同步）。
-
-## 6) 分发（签名 ZXP，无需 PlayerDebugMode）
-
-未签名 CEP 扩展通常需要开启 `PlayerDebugMode`（Windows 要改注册表）。如要对外分发且避免用户改注册表，建议使用 ZXP 签名打包：
-
-1. 安装 Adobe Extension Signing Toolkit（拿到 `ZXPSignCmd.exe`）。
-2. 设置 `ZXPSIGNCMD_PATH`（示例）：
-   - `$env:ZXPSIGNCMD_PATH = "C:\\path\\to\\ZXPSignCmd.exe"`
-3. 生成自签名证书（只需一次）：
-   - `powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\create_cep_self_signed_cert.ps1 -out_p12_path .\CEP_package_tools\certs\cep_self_signed.p12`
-4. 生成签名 `.zxp`：
-   - `powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12`
-5. 安装 `.zxp`（推荐用 Adobe 的安装器工具，如 `UnifiedPluginInstallerAgent` 或 `ExManCmd`）。
-
----
-
-## 附录：UXP vs CEP（简版）
-- **宿主桥接**：UXP 使用 `require("photoshop")` + `executeAsModal()`；CEP 通过面板 JS 调用 ExtendScript（`window.__adobe_cep__.evalScript(...)`）。
-- **显示层**：UXP 使用 `ImageBlob + <img>`；CEP 可使用标准浏览器 `canvas`。
-- **调试/加载**：UXP 依赖 UXP Developer Tool；CEP 需要开启 `PlayerDebugMode` 并从 `窗口 > 扩展(旧版)` 打开，DevTools 通过 `http://127.0.0.1:8088` 进入。
+- CEP 是 Legacy 扩展体系，面板在某些宿主场景（例如 tab 切换）可能被销毁重建，属于宿主行为。
+- Mixbox 许可为 CC BY-NC 4.0，商用需单独确认授权。
+- 若更新根目录 `lib/mixbox.js`，需要同步到 `cep_ext/.../js/mixbox.js`（可直接运行同步脚本）。

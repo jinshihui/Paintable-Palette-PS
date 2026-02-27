@@ -1,6 +1,5 @@
 node_modules/
 .DS_Store
 dist/
-.uxp/
 package-lock.json
 cep_ext/com.jinshihui.paintablepalette/js/mixbox.js

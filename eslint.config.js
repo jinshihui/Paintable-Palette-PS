@@ -1,14 +1,12 @@
 module.exports = [
     {
-        files: ["src/**/*.js", "lib/**/*.js"],
+        files: ["cep_ext/com.jinshihui.paintablepalette/js/**/*.js", "lib/**/*.js"],
         languageOptions: {
             ecmaVersion: 2021,
             sourceType: "script",
             globals: {
                 require: "readonly",
                 console: "readonly",
-                ImageBlob: "readonly",
-                URL: "readonly",
                 requestAnimationFrame: "readonly",
                 document: "readonly",
                 window: "readonly"
