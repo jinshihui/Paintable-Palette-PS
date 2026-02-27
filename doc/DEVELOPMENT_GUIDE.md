@@ -193,9 +193,14 @@ powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\create_cep_self_sig
 powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
 ```
 
+如需构建 **RGB-only（不包含 Mixbox）** 版本：
+```powershell
+powershell -ExecutionPolicy Bypass -File .\CEP_package_tools\package_cep_zxp.ps1 -no_mixbox -cert_p12_path .\CEP_package_tools\certs\cep_self_signed.p12
+```
+
 ---
 
 ## 6. 注意事项
 - CEP 是 Legacy 扩展体系，面板在某些宿主场景（例如 tab 切换）可能被销毁重建，属于宿主行为。
-- Mixbox 许可为 CC BY-NC 4.0，商用需单独确认授权。
+- Mixbox 许可为 CC BY-NC 4.0（仅非商用），商用需单独确认授权或构建 RGB-only 版本。
 - 若更新根目录 `lib/mixbox.js`，需要同步到 `cep_ext/.../js/mixbox.js`（可直接运行同步脚本）。

@@ -627,7 +627,13 @@ async function init() {
   bind_ui();
 
   const mode_el = document.getElementById("select-mode");
-  if (mode_el) mode_el.value = color_mode;
+  if (mode_el) {
+    mode_el.value = color_mode;
+    if (mode_el.value !== color_mode) {
+      color_mode = "rgb";
+      mode_el.value = color_mode;
+    }
+  }
 
   canvas_el.addEventListener("pointerdown", on_pointer_down);
   canvas_el.addEventListener("pointermove", on_pointer_move);

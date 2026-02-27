@@ -7,7 +7,8 @@ param(
   [string]$zxpsigncmd_path = $(if (![string]::IsNullOrWhiteSpace($env:ZXPSIGNCMD_PATH)) { $env:ZXPSIGNCMD_PATH } else { (Join-Path $PSScriptRoot "ZXPSignCmd.exe") }),
   [string]$cert_p12_path = (Join-Path $PSScriptRoot "certs\\cep_self_signed.p12"),
   [securestring]$cert_password,
-  [switch]$include_debug
+  [switch]$include_debug,
+  [switch]$no_mixbox
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,8 +17,10 @@ if (!(Test-Path -LiteralPath $source_dir)) {
   throw "source_dir not found: $source_dir"
 }
 
-if (!(Test-Path -LiteralPath $mixbox_source)) {
-  throw "mixbox_source not found: $mixbox_source"
+if (-not $no_mixbox) {
+  if (!(Test-Path -LiteralPath $mixbox_source)) {
+    throw "mixbox_source not found: $mixbox_source"
+  }
 }
 
 if ([string]::IsNullOrWhiteSpace($zxpsigncmd_path)) {
@@ -82,9 +85,21 @@ if ($rc -ge 8) {
   throw "robocopy failed with exit code: $rc"
 }
 
-$mixbox_dest = Join-Path $staging_ext_dir "js\\mixbox.js"
-New-Item -ItemType Directory -Path (Split-Path -Parent $mixbox_dest) -Force | Out-Null
-Copy-Item -LiteralPath $mixbox_source -Destination $mixbox_dest -Force
+if ($no_mixbox) {
+  $mixbox_dest = Join-Path $staging_ext_dir "js\\mixbox.js"
+  Remove-Item -LiteralPath $mixbox_dest -Force -ErrorAction SilentlyContinue
+
+  $index_html_path = Join-Path $staging_ext_dir "index.html"
+  if (Test-Path -LiteralPath $index_html_path) {
+    $index_html = Get-Content -LiteralPath $index_html_path -Encoding UTF8 -Raw
+    $index_html = $index_html -replace "(\\r?\\n\\s*<option value=\\\"mixbox\\\">Mixbox</option>\\s*)", "`r`n"
+    Set-Content -LiteralPath $index_html_path -Encoding UTF8 -Value $index_html
+  }
+} else {
+  $mixbox_dest = Join-Path $staging_ext_dir "js\\mixbox.js"
+  New-Item -ItemType Directory -Path (Split-Path -Parent $mixbox_dest) -Force | Out-Null
+  Copy-Item -LiteralPath $mixbox_source -Destination $mixbox_dest -Force
+}
 
 New-Item -ItemType Directory -Path $out_dir -Force | Out-Null
 $zxp_path = Join-Path $out_dir "$extension_id-$timestamp.zxp"

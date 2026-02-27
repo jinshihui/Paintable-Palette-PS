@@ -46,3 +46,19 @@
    └─ index.html
 ```
 4. 启动 Photoshop，从 `窗口 > 扩展(旧版)` 打开面板
+
+## 许可与合规（Mixbox）
+
+本项目包含 **Mixbox**（Secret Weapons）用于“自然颜料混色”模式。Mixbox 的开源发布版许可为 **CC BY-NC 4.0（仅限非商业用途）**：
+
+- Mixbox 项目主页：`https://github.com/scrtwpns/mixbox`
+- 许可协议：`CC BY-NC 4.0`（非商业用途）
+- **结论**：任何**包含** Mixbox（如打包产物内带有 `js/mixbox.js`、或启用 Mixbox 模式）的发布版本，都不应被用于商业用途；如需商用请联系 Mixbox 作者获取商用授权。
+
+### 建议的发布方式（避免误用）
+
+- **可商用版（RGB-only）**：打包时不包含 Mixbox 文件，并在 UI 中不提供 Mixbox 选项。
+  - 使用打包脚本参数：`CEP_package_tools\\package_cep_zxp.ps1 -no_mixbox`
+- **非商用试用版（含 Mixbox）**：包含 Mixbox 文件与 Mixbox 模式，但明确标注“仅限非商用”。
+
+更多第三方声明见：`THIRD_PARTY_NOTICES.md`
