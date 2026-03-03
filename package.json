@@ -1,0 +1,20 @@
+{
+  "name": "mypsplugin",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "npm run -s lint",
+    "lint": "eslint --no-error-on-unmatched-pattern \"cep_ext/rgb_only/com.jinshihui.paintablepalette/js/**/*.js\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "eslint": "^10.0.0"
+  },
+  "dependencies": {}
+}

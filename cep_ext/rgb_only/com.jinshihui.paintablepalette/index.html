@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>PaintablePalette (CEP)</title>
+    <link rel="stylesheet" href="js/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="toolbar">
+        <select id="select-mode">
+          <option value="rgb">RGB</option>
+        </select>
+        <button id="btn-clear">Clear</button>
+        <button id="btn-pick">Pick</button>
+      </div>
+
+      <div class="statusbar">
+        <div id="fg-swatch" class="swatch"></div>
+        <span id="status-text">Ready</span>
+      </div>
+
+      <div class="surface-wrap">
+        <canvas id="palette-canvas" width="300" height="300" class="surface"></canvas>
+      </div>
+    </div>
+
+    <script src="js/main.js"></script>
+  </body>
+</html>
