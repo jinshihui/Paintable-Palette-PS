@@ -1,6 +1,6 @@
 # Paintable Palette 调色盘插件 (PS)
 
-English: `README_EN.md`
+English: [README_EN.md](README_EN.md)
 
 在 Photoshop 内提供一个“可涂抹的调色盘面板”：用当前前景色在调色盘上混色，并可吸色回写到 Photoshop 前景色。
 

@@ -1,6 +1,6 @@
 # Paintable Palette Plugin (PS)
 
-中文说明：`README.md`
+中文说明：[README.md](README.md)
 
 This is a “paintable palette” panel inside Photoshop: paint/mix colors on the palette using the current foreground color, and pick colors back to set Photoshop’s foreground color.
 
@@ -87,4 +87,3 @@ The Mixbox-NC build includes Mixbox (Secret Weapons), which is licensed under **
 - For commercial licensing, please contact the Mixbox authors (upstream repo: `https://github.com/scrtwpns/mixbox`)
 
 See `THIRD_PARTY_NOTICES.md` for more third-party notices.
-
