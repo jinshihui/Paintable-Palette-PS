@@ -1,64 +1,60 @@
-# Paintable Palette Plugin (PS)
+# Paintable Palette (Photoshop)
 
-中文说明：[README.md](README.md)
+中文: [README.md](README.md)
 
-This is a “paintable palette” panel inside Photoshop: paint/mix colors on the palette using the current foreground color, and pick colors back to set Photoshop’s foreground color.
+A “paintable palette” panel inside Photoshop: mix colors on the palette with the current foreground color, and pick colors back to the Photoshop foreground color.
 
 ![alt text](00assets/image-3.png)
 
-> This repository only contains the **CEP (Legacy Extension)** implementation.
 
-## Releases (Two Versions)
+## Releases (two builds)
 
-GitHub Releases provides two installable zip packages:
+This project ships two installable zips on GitHub Releases:
 
-- **RGB-only (Commercial OK)**: RGB linear blending only. Does **not** include Mixbox.
+- **RGB-only (commercial use allowed)**: RGB linear blending only; does not include Mixbox.
 ![alt text](00assets/image.png)
-- **Mixbox-NC (Non-Commercial only)**: Includes Mixbox natural pigment mixing. Since Mixbox is licensed under **CC BY-NC 4.0**, this build is **non-commercial use only**.
+- **Mixbox-NC (non-commercial only)**: includes Mixbox natural-pigment mixing. Because Mixbox is licensed under **CC BY-NC 4.0**, this build is **for non-commercial use only**.
 ![alt text](00assets/image-1.png)
-
-> Both builds use the same extension ID (`com.jinshihui.paintablepalette`) and cannot be installed at the same time. Please choose one.
+> Both builds share the same extension ID (`com.jinshihui.paintablepalette`); you cannot install them side by side—choose one.
 
 ## Features
 
-- Palette canvas (fixed 300x300)
-- Paint/mix using Photoshop’s current foreground color as the brush color
-- RGB-only: standard alpha-blend mixing
-- Mixbox-NC: pigment-like mixing (latent space)
-- Pick color: hold `Alt` and drag, or use `Pick` mode to pick from the palette and write back to Photoshop foreground color
-- Clear: `Clear`
-- Persistent state: restores canvas content and mode after tab switch / reload
+- Palette canvas (fixed 300×300)
+- Paint and mix using Photoshop’s current foreground color as the brush color
+- RGB-only: standard alpha blending
+- Mixbox-NC: paint-like mixing (latent-space blend)
+- Color pick: `Alt`-drag or **Pick** mode to sample from the palette and write back to the Photoshop foreground color
+- Clear: **Clear**
+- State persistence: canvas content and mode are restored after switching tabs or reloading
 
 ## Compatibility
 
-- **CEP build**: Legacy Extension (tested on Photoshop 25.x; host behavior/stability may vary by version)
+- **Photoshop**: This is a legacy **Extensions (Legacy)** panel. We have verified it on **Photoshop 2019** and **Photoshop 2024**; per Adobe’s compatibility guidance, **Photoshop CC 2017 and newer** generally work (confirm on your machine that **Window → Extensions (Legacy)** is still available).
+- **Input**: Works with a **regular mouse** for painting and picking; **tablet pens, Surface Pen**, and similar stylus input are also supported on the palette. To pick temporarily, hold **Alt** on the keyboard (or use the panel’s **Pick** mode), same as with a mouse.
+- **Apple Silicon (M-series)**: In newer Photoshop (e.g. **2025 / 26**), if **Extensions (Legacy)** is missing or unavailable, Photoshop is often running natively. In **Finder**, **right-click the Photoshop app → Get Info**, enable **Open using Rosetta**, then restart Photoshop—the panel should load normally.
 
-## Repository Content (Source)
+## Repository contents (source)
 
-This repository contains the **RGB-only** source code under:
+The source in this repo is the **RGB-only** build, under:
 
 - `cep_ext/rgb_only/com.jinshihui.paintablepalette/`
 
-Mixbox source code is not included in this repository. The Mixbox-NC build is provided only as a Release zip.
+Mixbox code is not in the repository; the Mixbox-NC build is distributed only as a Release zip.
 
-## Install & Usage (CEP)
+## Install & use (CEP)
 
-### Option A: Install from Releases (Recommended)
+### Option A: Install from Releases (recommended)
 
-1. Quit Photoshop
-2. Download and unzip the corresponding Release zip
-3. Copy the extracted extension folder (`com.jinshihui.paintablepalette`) into the CEP extensions directory:
-   - Windows: `%APPDATA%\Adobe\CEP\extensions\com.jinshihui.paintablepalette\`
-   - macOS: `~/Library/Application Support/Adobe/CEP/extensions/com.jinshihui.paintablepalette/`
-4. Launch Photoshop, then open the panel via `Window > Extensions (Legacy)`
+1. Download the zip for your build. On Windows, use built-in extraction: right-click the archive → **Extract All**.
+ ![](<./00assets/README_2026-03-21-11-02-12.png>)
 
-> If the extracted folder name has a suffix (e.g. `com.jinshihui.paintablepalette_RGB` / `com.jinshihui.paintablepalette_Mixbox`), rename it to `com.jinshihui.paintablepalette` before copying.
+2. Copy the extracted extension folder (`com.jinshihui.paintablepalette_mixbox` or `com.jinshihui.paintablepalette_RGB`) into the CEP extensions folder:
+   - Windows: `C:\Users\<YourUsername>\AppData\Roaming\Adobe\CEP\extensions`
+   - macOS: `~/Library/Application Support/Adobe/CEP/extensions/`
 
-> If the extracted folder contains `mimetype` and `META-INF/signatures.xml`, keep the folder structure intact.
-
-Example folder structure:
+Example layout:
 ```text
-%APPDATA%\Adobe\CEP\extensions\
+C:\Users\<YourUsername>\AppData\Roaming\Adobe\CEP\extensions\
 └─ com.jinshihui.paintablepalette\
    ├─ mimetype
    ├─ META-INF\
@@ -72,18 +68,31 @@ Example folder structure:
    │  └─ photoshop.jsx
    └─ index.html
 ```
+![](<./00assets/README_2026-03-21-11-11-05.png>)
 
-### Option B: Install from Source (RGB-only, for development)
+> Keep extracted files unchanged—especially `mimetype` and `META-INF/signatures.xml`.
 
-Copy `cep_ext/rgb_only/com.jinshihui.paintablepalette/` into the CEP extensions directory (see above).
+3. Launch Photoshop and open the panel from **Window → Extensions (Legacy)**.
 
-Note: source folders typically do not include signatures. Depending on the host, you may need to enable CEP debug mode (`PlayerDebugMode=1`) to load an unsigned extension.
+![](<./00assets/README_2026-03-21-11-12-02.png>)
 
-## Mixbox-NC Restrictions (Must Read)
+4. Photoshop 2019/2020 enforce self-signed extensions more strictly, and the signing chain can be fragile. If you copied the folder to the CEP extensions directory but the panel does not appear under **Window → Extensions (Legacy)**, enable CEP debug mode for Photoshop.
 
-The Mixbox-NC build includes Mixbox (Secret Weapons), which is licensed under **CC BY-NC 4.0 (Non-Commercial)**:
+Press **Win + R**, type `regedit`, and open Registry Editor. Navigate to `HKEY_CURRENT_USER\Software\Adobe\CSXS.9`. In the right pane, find or create `PlayerDebugMode`, set its value to `1`, and confirm.
+![](<./00assets/README_2026-03-21-11-22-25.png>)
 
-- Any build that includes Mixbox **must not be used for commercial purposes**
-- For commercial licensing, please contact the Mixbox authors (upstream repo: `https://github.com/scrtwpns/mixbox`)
 
-See `THIRD_PARTY_NOTICES.md` for more third-party notices.
+### Option B: Install from source (RGB-only, development)
+
+Copy `cep_ext/rgb_only/com.jinshihui.paintablepalette/` into the CEP extensions folder (paths above).
+
+Note: Source trees often omit signature metadata; some hosts require CEP debug mode (`PlayerDebugMode=1`) to load unsigned extensions.
+
+## Mixbox-NC restrictions (please read)
+
+The Mixbox-NC build includes Mixbox (Secret Weapons), licensed under **CC BY-NC 4.0 (non-commercial only)**:
+
+- Any build that includes Mixbox **must not be used commercially**
+- For commercial use, contact the Mixbox authors for a license (upstream: `https://github.com/scrtwpns/mixbox`)
+
+See also: `THIRD_PARTY_NOTICES.md`

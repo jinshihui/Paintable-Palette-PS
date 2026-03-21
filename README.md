@@ -6,7 +6,6 @@ English: [README_EN.md](README_EN.md)
 
 ![alt text](00assets/image-3.png)
 
-> 当前仓库仅保留 **CEP（Legacy Extension）** 实现。
 
 ## Releases（两个版本）
 
@@ -30,7 +29,10 @@ English: [README_EN.md](README_EN.md)
 
 ## 兼容性
 
-- **CEP 版**：Legacy Extension（Photoshop 25.x 已验证可用，宿主行为与稳定性依版本而异）
+- **Photoshop 版本**：本插件属于 Photoshop 的「扩展（旧版）」类型。我们已在 **Photoshop 2019** 与 **Photoshop 2024** 上做过实际使用验证；从 Adobe 的兼容范围来看，**Photoshop CC 2017 及更新版本**一般都可以使用（具体以你电脑上的 Photoshop 是否仍提供「窗口 → 扩展（旧版）」菜单为准）。
+- **输入设备**：可用**普通鼠标**正常涂抹与吸色；使用**数位板笔、Surface 触控笔**等笔类设备时，同样支持在调色盘上绘画；需要临时吸色时，可按住键盘 **Alt**（或配合插件里的 **Pick** 模式），与鼠标用法一致。
+- **苹果电脑（M 系列芯片）**：在较新的 Photoshop（例如 **2025 / 26 版**）里，若发现**找不到「扩展（旧版）」菜单**或相关入口不可用，多半是系统在「原生运行」Photoshop。此时可在 **访达** 里对 **Photoshop** 图标**右键 → 显示简介**，勾选 **「使用 Rosetta 打开」**，再重新启动 Photoshop，通常即可正常使用本插件。
+
 
 ## 仓库内容（源码）
 
@@ -44,20 +46,16 @@ English: [README_EN.md](README_EN.md)
 
 ### 方式 A：从 Releases 安装（推荐）
 
-1. 退出 Photoshop
-2. 下载并解压对应版本的 Release zip
-3. 将解压出来的扩展目录（`com.jinshihui.paintablepalette`）复制到 CEP 扩展目录：
-   - Windows：`%APPDATA%\Adobe\CEP\extensions\com.jinshihui.paintablepalette\`
-   - macOS：`~/Library/Application Support/Adobe/CEP/extensions/com.jinshihui.paintablepalette/`
-4. 启动 Photoshop，从 `窗口 > 扩展(旧版)` 打开面板
+1. 下载对应版本的 Release zip，用windows自带的解压缩：右键“全部解压缩”。
+ ![](<./00assets/README_2026-03-21-11-02-12.png>)
 
-> 若解压后的目录名带有后缀（例如 `com.jinshihui.paintablepalette_RGB` / `com.jinshihui.paintablepalette_Mixbox`），请先重命名为 `com.jinshihui.paintablepalette` 再复制安装。
-
-> 若你解压得到的目录中包含 `mimetype` 与 `META-INF/signatures.xml`，请保持目录结构原样不要丢失。
+2. 将解压出来的扩展目录（`com.jinshihui.paintablepalette_mixbox`或`com.jinshihui.paintablepalette_RGB`）复制到 CEP 扩展目录：
+   - Windows：`C:\Users\你的用户名\AppData\Roaming\Adobe\CEP\extensions`
+   - macOS：`~/Library/Application Support/Adobe/CEP/extensions/`
 
 目录结构示例：
 ```text
-%APPDATA%\Adobe\CEP\extensions\
+C:\Users\你的用户名\AppData\Roaming\Adobe\CEP\extensions\
 └─ com.jinshihui.paintablepalette\
    ├─ mimetype
    ├─ META-INF\
@@ -71,6 +69,19 @@ English: [README_EN.md](README_EN.md)
    │  └─ photoshop.jsx
    └─ index.html
 ```
+![](<./00assets/README_2026-03-21-11-11-05.png>)
+
+> 请在解压、复制过程中保持解压得到的目录中文件原样不变，尤其是 `mimetype` 与 `META-INF/signatures.xml`签名文件。
+
+3. 启动 Photoshop，从 `窗口 > 扩展(旧版)` 打开面板
+
+![](<./00assets/README_2026-03-21-11-12-02.png>)
+
+4. 由于PS 2019/2020 对自签名更严格，以及签名链路较脆弱的问题，当已把插件文件夹复制到CEP扩展目录，仍然在PS-窗口-扩展（旧版）找不到插件，需将PS设置为调试模式。
+
+按 Win + R，打开“运行”，输入：`regedit`，打开注册表编辑器。在注册表编辑器中，找到以下路径：`HKEY_CURRENT_USER\Software\Adobe\CSXS.9`，在右侧窗口中找到或新建 `PlayerDebugMode` 项，双击打开，将值改为 `1`，点击确定保存。
+![](<./00assets/README_2026-03-21-11-22-25.png>)
+
 
 ### 方式 B：从源码安装（仅 RGB-only，开发用）
 

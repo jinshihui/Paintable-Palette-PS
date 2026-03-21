@@ -68,6 +68,7 @@ let brush_color = { r: 0, g: 0, b: 0 };
 let color_mode = "rgb";
 let is_drawing = false;
 let pick_mode = false;
+let alt_key_down = false;
 let last_x = null;
 let last_y = null;
 
@@ -296,7 +297,7 @@ function get_pixel(x, y) {
 }
 
 function is_pick_mode(e) {
-  return pick_mode || (e && e.altKey);
+  return pick_mode || (e && e.altKey) || alt_key_down;
 }
 
 function update_pixel_buffer_rgb(cx, cy, radius, rgb) {
@@ -385,10 +386,10 @@ async function on_pointer_down(e) {
   last_x = null;
   last_y = null;
 
-  if (canvas_el && canvas_el.setPointerCapture) {
+  if (typeof PointerEvent !== "undefined" && canvas_el && canvas_el.setPointerCapture) {
     try {
       canvas_el.setPointerCapture(e.pointerId);
-    } catch {
+    } catch (_) {
       // ignore
     }
   }
@@ -512,10 +513,25 @@ async function init() {
     }
   }
 
-  canvas_el.addEventListener("pointerdown", on_pointer_down);
-  canvas_el.addEventListener("pointermove", on_pointer_move);
-  canvas_el.addEventListener("pointerup", on_pointer_up);
-  canvas_el.addEventListener("pointerleave", on_pointer_up);
+  if (typeof PointerEvent !== "undefined") {
+    canvas_el.addEventListener("pointerdown", on_pointer_down);
+    canvas_el.addEventListener("pointermove", on_pointer_move);
+    canvas_el.addEventListener("pointerup", on_pointer_up);
+    canvas_el.addEventListener("pointerleave", on_pointer_up);
+  } else {
+    canvas_el.addEventListener("mousedown", on_pointer_down);
+    canvas_el.addEventListener("mousemove", on_pointer_move);
+    canvas_el.addEventListener("mouseup", on_pointer_up);
+    canvas_el.addEventListener("mouseleave", on_pointer_up);
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.keyCode === 18) alt_key_down = true;
+  });
+  document.addEventListener("keyup", function (e) {
+    if (e.keyCode === 18) alt_key_down = false;
+  });
+  window.addEventListener("blur", function () { alt_key_down = false; });
 
   console.log("[paintablepalette] init ok.");
   if (restored) console.log("[paintablepalette] state restored from indexedDB");

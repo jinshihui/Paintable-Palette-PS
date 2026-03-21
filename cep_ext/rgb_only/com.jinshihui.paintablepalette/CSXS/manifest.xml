@@ -3,7 +3,7 @@
     ExtensionBundleId="com.jinshihui.paintablepalette"
     ExtensionBundleName="PaintablePalette (CEP)"
     ExtensionBundleVersion="1.0.0"
-    Version="11.0">
+    Version="7.0">
     <ExtensionList>
         <Extension Id="com.jinshihui.paintablepalette.panel" Version="1.0.0" />
     </ExtensionList>
@@ -11,12 +11,13 @@
     <ExecutionEnvironment>
         <HostList>
             <Host Name="PHXS" Version="[0.0,99.9]" />
+            <Host Name="PHSP" Version="[0.0,99.9]" />
         </HostList>
         <LocaleList>
             <Locale Code="All" />
         </LocaleList>
         <RequiredRuntimeList>
-            <RequiredRuntime Name="CSXS" Version="11.0" />
+            <RequiredRuntime Name="CSXS" Version="7.0" />
         </RequiredRuntimeList>
     </ExecutionEnvironment>
 
