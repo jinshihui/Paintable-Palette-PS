@@ -18,4 +18,3 @@ function paintablepalette_setForegroundRGB(r, g, b) {
     app.foregroundColor = c;
     return 'OK';
 }
-

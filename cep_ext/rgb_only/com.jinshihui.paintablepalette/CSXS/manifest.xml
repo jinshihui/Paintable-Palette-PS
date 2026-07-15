@@ -2,7 +2,7 @@
 <ExtensionManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     ExtensionBundleId="com.jinshihui.paintablepalette"
     ExtensionBundleName="PaintablePalette (CEP)"
-    ExtensionBundleVersion="1.0.0"
+  ExtensionBundleVersion="1.0.20"
     Version="7.0">
     <ExtensionList>
         <Extension Id="com.jinshihui.paintablepalette.panel" Version="1.0.0" />
